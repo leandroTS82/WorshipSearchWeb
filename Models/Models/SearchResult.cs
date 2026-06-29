@@ -17,4 +17,5 @@ public class LibrarySearchResult
     public MusicDocument Document { get; set; } = new();
     public double Score { get; set; }
     public string FileName { get; set; } = string.Empty;
+    public int MatchedTerms { get; set; }
 }

@@ -37,23 +37,33 @@ public class JsonSearchEngine : IJsonSearchEngine
             if (query.ApprovedOnly && !doc.Approved) continue;
             if (excluded.Count > 0 && IsExcluded(doc, excluded)) continue;
 
-            double score = string.IsNullOrWhiteSpace(query.Query)
-                ? 1.0
-                : ScoreDocument(doc, terms);
+            double score;
+            int matchedTerms;
+            if (string.IsNullOrWhiteSpace(query.Query))
+            {
+                score = 1.0;
+                matchedTerms = 0;
+            }
+            else
+            {
+                (score, matchedTerms) = ScoreDocument(doc, terms);
+            }
 
-            if (score > 0 || string.IsNullOrWhiteSpace(query.Query))
+            if (matchedTerms > 0 || string.IsNullOrWhiteSpace(query.Query))
             {
                 results.Add(new LibrarySearchResult
                 {
                     Document = doc,
                     Score = score,
-                    FileName = fileName
+                    FileName = fileName,
+                    MatchedTerms = matchedTerms
                 });
             }
         }
 
         return results
-            .OrderByDescending(r => r.Score)
+            .OrderByDescending(r => r.MatchedTerms)
+            .ThenByDescending(r => r.Score)
             .ThenByDescending(r => r.Document.Approved)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
@@ -73,31 +83,36 @@ public class JsonSearchEngine : IJsonSearchEngine
         return false;
     }
 
-    private static double ScoreDocument(MusicDocument doc, string[] terms)
+    private static (double score, int matchedTerms) ScoreDocument(MusicDocument doc, string[] terms)
     {
         double total = 0;
+        int matchedTerms = 0;
         var search = doc.Search ?? new SearchMetadata();
         foreach (var term in terms)
         {
-            total += ScoreField(doc.Title, term, weight: 10);
-            total += ScoreField(doc.Artist, term, weight: 8);
-            total += ScoreList(search.Themes, term, weight: 6);
-            total += ScoreList(search.Keywords, term, weight: 5);
-            total += ScoreList(search.BiblicalReferences, term, weight: 5);
-            total += ScoreList(search.BiblicalTopics, term, weight: 4);
-            total += ScoreList(search.BiblicalBooks, term, weight: 4);
-            total += ScoreList(search.Contexts, term, weight: 4);
-            total += ScoreList(search.Moods, term, weight: 3);
-            total += ScoreList(search.WorshipMoments, term, weight: 6);
-            total += ScoreField(doc.Summary, term, weight: 3);
-            total += ScoreField(search.Occasion, term, weight: 3);
-            total += ScoreList(search.Synonyms, term, weight: 3);
-            total += ScoreList(search.BiblicalCharacters, term, weight: 3);
-            total += ScoreField(doc.Lyrics, term, weight: 2);
-            total += ScoreField(doc.Explanation, term, weight: 2);
-            total += ScoreField(doc.PracticalApplication, term, weight: 1);
+            double termScore = 0;
+            termScore += ScoreField(doc.Title, term, weight: 10);
+            termScore += ScoreField(doc.Artist, term, weight: 8);
+            termScore += ScoreList(search.Themes, term, weight: 6);
+            termScore += ScoreList(search.Keywords, term, weight: 5);
+            termScore += ScoreList(search.BiblicalReferences, term, weight: 5);
+            termScore += ScoreList(search.BiblicalTopics, term, weight: 4);
+            termScore += ScoreList(search.BiblicalBooks, term, weight: 4);
+            termScore += ScoreList(search.Contexts, term, weight: 4);
+            termScore += ScoreList(search.Moods, term, weight: 3);
+            termScore += ScoreList(search.WorshipMoments, term, weight: 6);
+            termScore += ScoreField(doc.Summary, term, weight: 3);
+            termScore += ScoreField(search.Occasion, term, weight: 3);
+            termScore += ScoreList(search.Synonyms, term, weight: 3);
+            termScore += ScoreList(search.BiblicalCharacters, term, weight: 3);
+            termScore += ScoreField(doc.Lyrics, term, weight: 2);
+            termScore += ScoreField(doc.Explanation, term, weight: 2);
+            termScore += ScoreField(doc.PracticalApplication, term, weight: 1);
+
+            if (termScore > 0) matchedTerms++;
+            total += termScore;
         }
-        return total;
+        return (total, matchedTerms);
     }
 
     private static double ScoreField(string field, string term, double weight)
