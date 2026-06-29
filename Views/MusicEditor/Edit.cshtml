@@ -1,0 +1,313 @@
+@model WorshipSearchWeb.Models.MusicDocument
+@{
+    ViewData["Title"] = "Editar – " + Model.Title;
+    var fileName = ViewBag.FileName as string ?? "";
+}
+
+<div style="max-width:1100px;margin:0 auto" class="ws-fade">
+
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap">
+        <a href="@Url.Action("Index","MusicLibrary")" class="ws-btn ws-btn-ghost ws-btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/></svg>
+            Biblioteca
+        </a>
+        <div style="flex:1">
+            <div style="font-family:'Spectral',serif;font-size:22px">@Model.Title</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-top:1px">@Model.Artist</div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button id="enrichBtn" class="ws-btn ws-btn-ghost ws-btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
+                Re-enriquecer IA
+            </button>
+            <button id="saveBtn" class="ws-btn ws-btn-primary ws-btn-sm">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Salvar
+            </button>
+        </div>
+    </div>
+
+    <div id="statusMsg" style="display:none;margin-bottom:16px"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:18px;align-items:start">
+
+        {{-- Left --}}
+        <div>
+            <div class="ws-card" style="padding:20px;margin-bottom:14px">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Informações Básicas</div>
+
+                <div class="ws-form-group">
+                    <label class="ws-label">ID</label>
+                    <input type="text" id="f-id" class="ws-input" style="font-family:monospace;font-size:13px;padding:9px 12px" value="@Model.Id" />
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div class="ws-form-group">
+                        <label class="ws-label">Título</label>
+                        <input type="text" id="f-title" class="ws-input" style="padding:9px 12px" value="@Model.Title" />
+                    </div>
+                    <div class="ws-form-group">
+                        <label class="ws-label">Artista</label>
+                        <input type="text" id="f-artist" class="ws-input" style="padding:9px 12px" value="@Model.Artist" />
+                    </div>
+                    <div class="ws-form-group">
+                        <label class="ws-label">Álbum</label>
+                        <input type="text" id="f-album" class="ws-input" style="padding:9px 12px" value="@Model.Album" />
+                    </div>
+                    <div class="ws-form-group">
+                        <label class="ws-label">Gênero</label>
+                        <input type="text" id="f-genre" class="ws-input" style="padding:9px 12px" value="@Model.Genre" />
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+                    <label class="ws-label" style="margin:0">Idioma</label>
+                    <input type="text" id="f-language" class="ws-input" style="padding:7px 12px;width:120px;font-size:13px" value="@Model.Language" />
+                </div>
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-card)">
+                    <div class="ws-label" style="margin-bottom:8px">Momento do Culto</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px" id="editor-moments">
+                        @foreach (var m in new[]{"Celebração","Adoração","Santa Ceia","Apelo","Intercessão","Ofertório","Abertura","Encerramento"})
+                        {
+                            var selected = (Model.Search?.WorshipMoments ?? new()).Contains(m);
+                            <button type="button" class="ws-moment-btn @(selected ? "selected" : "")" data-moment="@m" onclick="toggleEditorMoment('@m',this)">@m</button>
+                        }
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-card)">
+                    <input type="checkbox" id="f-approved" @(Model.Approved ? "checked" : "") style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" />
+                    <label for="f-approved" style="cursor:pointer;font-size:14px">Aprovada</label>
+                </div>
+            </div>
+
+            <div class="ws-card" style="margin-bottom:14px">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border-card);font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Letra</div>
+                <textarea id="f-lyrics" class="ws-input" style="border:none;border-radius:0;min-height:260px;padding:16px 18px;font-size:13.5px;line-height:1.7;color:var(--text-sub)">@Model.Lyrics</textarea>
+            </div>
+
+            <div class="ws-card" style="padding:18px">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Metadados</div>
+                <div class="ws-form-group">
+                    <label class="ws-label">URL Canônica</label>
+                    <input type="text" id="f-canonical-url" class="ws-input" style="padding:9px 12px;font-size:13px" value="@Model.Metadata?.CanonicalUrl" />
+                </div>
+                <div class="ws-form-group" style="margin-bottom:0">
+                    <label class="ws-label">Imagem</label>
+                    <input type="text" id="f-image" class="ws-input" style="padding:9px 12px;font-size:13px" value="@Model.Metadata?.Image" />
+                </div>
+            </div>
+        </div>
+
+        {{-- Right --}}
+        <div>
+            <div class="ws-card" style="padding:20px;margin-bottom:14px">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Conteúdo IA</div>
+                <div class="ws-form-group">
+                    <label class="ws-label">Resumo</label>
+                    <textarea id="f-summary" class="ws-input" rows="2">@Model.Summary</textarea>
+                </div>
+                <div class="ws-form-group">
+                    <label class="ws-label">Explicação Teológica</label>
+                    <textarea id="f-explanation" class="ws-input" rows="3">@Model.Explanation</textarea>
+                </div>
+                <div class="ws-form-group" style="margin-bottom:0">
+                    <label class="ws-label">Aplicação Prática</label>
+                    <textarea id="f-practical" class="ws-input" rows="2">@Model.PracticalApplication</textarea>
+                </div>
+            </div>
+
+            <div class="ws-card" style="padding:20px;margin-bottom:14px">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Classificação</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                    <div class="ws-form-group" style="margin-bottom:0">
+                        <label class="ws-label">Estilo</label>
+                        <input type="text" id="f-worship-style" class="ws-input" style="padding:9px 12px" value="@Model.Search?.WorshipStyle" />
+                    </div>
+                    <div class="ws-form-group" style="margin-bottom:0">
+                        <label class="ws-label">Energia</label>
+                        <input type="text" id="f-energy-level" class="ws-input" style="padding:9px 12px" value="@Model.Search?.EnergyLevel" />
+                    </div>
+                    <div class="ws-form-group" style="margin-bottom:0">
+                        <label class="ws-label">Ocasião</label>
+                        <input type="text" id="f-occasion" class="ws-input" style="padding:9px 12px" value="@Model.Search?.Occasion" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="ws-card" style="padding:20px">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Listas de Busca <span style="font-style:italic;text-transform:none;letter-spacing:0;font-size:11px">(um por linha)</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    @{
+                        void ArrayField(string label, string id, List<string>? values)
+                        {
+                            <div class="ws-form-group" style="margin-bottom:0">
+                                <label class="ws-label">@label</label>
+                                <textarea id="@id" class="ws-input" rows="3" placeholder="Um por linha">@string.Join("\n", values ?? new())</textarea>
+                            </div>
+                        }
+                    }
+                    @{ ArrayField("Temas", "f-themes", Model.Search?.Themes); }
+                    @{ ArrayField("Emoções", "f-moods", Model.Search?.Moods); }
+                    @{ ArrayField("Contextos", "f-contexts", Model.Search?.Contexts); }
+                    @{ ArrayField("Palavras-chave", "f-keywords", Model.Search?.Keywords); }
+                    @{ ArrayField("Referências Bíblicas", "f-biblical-refs", Model.Search?.BiblicalReferences); }
+                    @{ ArrayField("Livros Bíblicos", "f-biblical-books", Model.Search?.BiblicalBooks); }
+                    @{ ArrayField("Tópicos Bíblicos", "f-biblical-topics", Model.Search?.BiblicalTopics); }
+                    @{ ArrayField("Personagens Bíblicos", "f-biblical-chars", Model.Search?.BiblicalCharacters); }
+                    @{ ArrayField("Sinônimos", "f-synonyms", Model.Search?.Synonyms); }
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<style>
+.ws-moment-btn {
+    padding: 6px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--border-card);
+    background: var(--bg-input);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+}
+.ws-moment-btn:hover { border-color: var(--accent-line); color: var(--text); }
+.ws-moment-btn.selected { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 500; }
+</style>
+<script>
+var editorMoments = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Search?.WorshipMoments ?? new System.Collections.Generic.List<string>()));
+
+function toggleEditorMoment(moment, btn) {
+    var idx = editorMoments.indexOf(moment);
+    if (idx === -1) { editorMoments.push(moment); $(btn).addClass('selected'); }
+    else { editorMoments.splice(idx, 1); $(btn).removeClass('selected'); }
+}
+
+function toLines(id) {
+    return $('#' + id).val().split('\n').map(function(s){ return s.trim(); }).filter(function(s){ return s; });
+}
+
+function collectDoc() {
+    return {
+        id: $('#f-id').val(),
+        title: $('#f-title').val(),
+        artist: $('#f-artist').val(),
+        album: $('#f-album').val(),
+        genre: $('#f-genre').val(),
+        language: $('#f-language').val(),
+        approved: $('#f-approved').is(':checked'),
+        lyrics: $('#f-lyrics').val(),
+        summary: $('#f-summary').val(),
+        explanation: $('#f-explanation').val(),
+        practical_application: $('#f-practical').val(),
+        search: {
+            themes: toLines('f-themes'),
+            contexts: toLines('f-contexts'),
+            keywords: toLines('f-keywords'),
+            biblical_topics: toLines('f-biblical-topics'),
+            biblical_references: toLines('f-biblical-refs'),
+            biblical_books: toLines('f-biblical-books'),
+            biblical_characters: toLines('f-biblical-chars'),
+            moods: toLines('f-moods'),
+            synonyms: toLines('f-synonyms'),
+            worship_style: $('#f-worship-style').val(),
+            energy_level: $('#f-energy-level').val(),
+            occasion: $('#f-occasion').val(),
+            worship_moments: editorMoments
+        },
+        metadata: {
+            source: 'letras.mus.br',
+            canonical_url: $('#f-canonical-url').val(),
+            image: $('#f-image').val(),
+            indexed_at: '@Model.Metadata?.IndexedAt'
+        }
+    };
+}
+
+function applyEnriched(s) {
+    function setList(id, arr) { $('#' + id).val((arr || []).join('\n')); }
+    setList('f-themes', s.themes);
+    setList('f-contexts', s.contexts);
+    setList('f-keywords', s.keywords);
+    setList('f-biblical-topics', s.biblical_topics);
+    setList('f-biblical-refs', s.biblical_references);
+    setList('f-biblical-books', s.biblical_books);
+    setList('f-biblical-chars', s.biblical_characters);
+    setList('f-moods', s.moods);
+    setList('f-synonyms', s.synonyms);
+    if (s.worship_style) $('#f-worship-style').val(s.worship_style);
+    if (s.energy_level)  $('#f-energy-level').val(s.energy_level);
+    if (s.occasion)      $('#f-occasion').val(s.occasion);
+    if (s.worship_moments) {
+        editorMoments = s.worship_moments;
+        $('.ws-moment-btn').each(function(){
+            $(this).toggleClass('selected', editorMoments.indexOf($(this).data('moment')) !== -1);
+        });
+    }
+}
+
+function showStatus(html, type) {
+    var colors  = { success: '#122016', danger: '#2a1215', info: '#131822' };
+    var borders = { success: '#1d4a2b', danger: '#5c2b2e', info: '#1d3a5c' };
+    var texts   = { success: '#69d18a', danger: '#ff8a80', info: '#80c4e8' };
+    $('#statusMsg').attr('style',
+        'display:block;padding:12px 16px;border-radius:10px;font-size:14px;margin-bottom:16px;' +
+        'background:' + colors[type] + ';border:1px solid ' + borders[type] + ';color:' + texts[type]
+    ).html(html);
+}
+
+$('#saveBtn').click(function(){
+    var btn = $(this).prop('disabled', true);
+    $.ajax({
+        url: '@Url.Action("Save","MusicEditor")?fileName=@fileName',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(collectDoc()),
+        success: function(){ showStatus('✓ Salvo com sucesso!', 'success'); btn.prop('disabled', false); },
+        error: function(xhr){ showStatus('Erro ao salvar: ' + ((xhr.responseJSON && xhr.responseJSON.error) || xhr.statusText), 'danger'); btn.prop('disabled', false); }
+    });
+});
+
+// Paragraph-by-paragraph enrichment (same flow as Preview)
+$('#enrichBtn').click(async function(){
+    var btn = $(this).prop('disabled', true);
+    var doc = collectDoc();
+    var paragraphs = (doc.lyrics || '').split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    if (!paragraphs.length) { showStatus('Nenhuma estrofe encontrada na letra.', 'danger'); btn.prop('disabled', false); return; }
+
+    var accumulated = { themes:[], moods:[], contexts:[], keywords:[], biblical_topics:[], biblical_references:[], biblical_books:[], biblical_characters:[], synonyms:[], worship_style:'', energy_level:'', occasion:'', worship_moments:[] };
+
+    showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Analisando estrofe 1/' + paragraphs.length + '…', 'info');
+
+    for (var i = 0; i < paragraphs.length; i++) {
+        showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Estrofe ' + (i+1) + '/' + paragraphs.length + '…', 'info');
+        try {
+            var newTags = await $.ajax({ url: '@Url.Action("EnrichParagraph","MusicIndex")', method: 'POST', contentType: 'application/json',
+                data: JSON.stringify({ paragraph: paragraphs[i], title: doc.title, artist: doc.artist, existing_tags: accumulated }) });
+            ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms'].forEach(function(f){
+                var added = (newTags[f] || []).filter(function(v){ return v && !accumulated[f].some(function(e){ return e.toLowerCase()===v.toLowerCase(); }); });
+                accumulated[f] = accumulated[f].concat(added);
+            });
+            if (!accumulated.worship_style && newTags.worship_style) accumulated.worship_style = newTags.worship_style;
+            if (!accumulated.energy_level  && newTags.energy_level)  accumulated.energy_level  = newTags.energy_level;
+            if (!accumulated.occasion      && newTags.occasion)       accumulated.occasion      = newTags.occasion;
+        } catch(e) { /* continue on paragraph error */ }
+    }
+
+    showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Gerando resumo…', 'info');
+    try {
+        doc.search = accumulated;
+        var summary = await $.ajax({ url: '@Url.Action("EnrichSummary","MusicIndex")', method: 'POST', contentType: 'application/json', data: JSON.stringify(doc) });
+        $('#f-summary').val(summary.summary || '');
+        $('#f-explanation').val(summary.explanation || '');
+        $('#f-practical').val(summary.practical_application || '');
+    } catch(e) { /* summary optional */ }
+
+    applyEnriched(accumulated);
+    showStatus('✓ Enriquecimento aplicado! Revise e salve.', 'success');
+    btn.prop('disabled', false);
+});
+</script>
+}

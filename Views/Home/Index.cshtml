@@ -1,0 +1,183 @@
+@model List<WorshipSearchWeb.Models.LibrarySearchResult>
+@{
+    ViewData["Title"] = "Pesquisar";
+    var query = ViewBag.Query as string ?? "";
+    var approvedOnly = (bool)(ViewBag.ApprovedOnly ?? false);
+}
+
+<div style="max-width:900px;margin:0 auto" class="ws-fade">
+
+    <div style="margin-bottom:24px">
+        <div class="ws-page-title">Encontre o louvor certo</div>
+        <div class="ws-page-sub">Pesquise por tema, versículo, emoção, contexto ou trecho da letra.</div>
+    </div>
+
+    <form method="get" action="@Url.Action("Index","Home")" id="search-form">
+        <div style="position:relative;margin-bottom:12px">
+            <svg style="position:absolute;left:17px;top:50%;transform:translateY(-50%);pointer-events:none" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+            <input type="text" name="q" value="@query" id="q-input"
+                   class="ws-input ws-input-icon"
+                   style="font-size:16px;padding:17px 60px 17px 50px;border-radius:14px"
+                   placeholder="Pesquise um tema, versículo ou trecho da letra…"
+                   autocomplete="off" autofocus />
+            <button type="submit" id="search-btn"
+                    style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--accent);border:none;border-radius:9px;padding:7px 14px;color:#fff;font-family:inherit;font-size:13px;cursor:pointer;font-weight:500">
+                Buscar
+            </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;color:var(--text-muted)">
+                <input type="checkbox" name="approvedOnly" value="true" @(approvedOnly ? "checked" : "")
+                       onchange="this.form.submit()"
+                       style="width:15px;height:15px;accent-color:var(--accent)" />
+                Apenas aprovadas
+            </label>
+        </div>
+    </form>
+
+    @{
+        var suggestions = new[] { "gratidão", "cura", "esperança", "adoração", "Salmo 91", "Santa Ceia", "abertura", "Romanos 8" };
+        var activeTerms = (query ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                           .Select(t => t.ToLowerInvariant()).ToHashSet();
+    }
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px">
+        <span style="color:var(--text-dim);font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-right:2px">Sugestões</span>
+        @foreach (var s in suggestions)
+        {
+            var isActive = activeTerms.Contains(s.ToLowerInvariant());
+            <button type="button" data-suggestion="@s"
+                    class="ws-suggestion-chip @(isActive ? "ws-chip-active" : "")"
+                    style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;font-family:inherit;font-size:13px;cursor:pointer;transition:all .15s;@(isActive ? "background:var(--accent);border:1px solid var(--accent);color:#fff;" : "background:var(--bg-card);border:1px solid var(--border-card);color:var(--text-sub);")">
+                <span style="width:6px;height:6px;border-radius:50%;background:@(isActive ? "#fff" : "var(--accent)");display:inline-block;flex-shrink:0"></span>@s
+            </button>
+        }
+    </div>
+
+    <div class="ws-section-header" style="margin-top:28px">
+        <span class="ws-section-title">
+            @if (!string.IsNullOrWhiteSpace(query))
+            {
+                @($"{Model.Count} resultado(s) para \"{query}\"")
+            }
+            else
+            {
+                <span>Biblioteca</span>
+            }
+        </span>
+        <a href="@Url.Action("Index","MusicSearch")" class="ws-btn ws-btn-ghost ws-btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Indexar música
+        </a>
+    </div>
+
+    @if (Model.Count > 0)
+    {
+        <div class="ws-grid ws-grid-3">
+            @foreach (var item in Model)
+            {
+                var doc = item.Document;
+                <div class="ws-card ws-fade">
+                    <div style="padding:18px 18px 14px">
+                        <div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:12px">
+                            @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
+                            {
+                                <img src="@doc.Metadata.Image" width="46" height="46"
+                                     style="border-radius:9px;object-fit:cover;flex-shrink:0;border:1px solid var(--border)" alt="" />
+                            }
+                            else
+                            {
+                                <div style="width:46px;height:46px;border-radius:9px;background:var(--accent-soft);border:1px solid var(--accent-line);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="20" cy="16" r="3"/></svg>
+                                </div>
+                            }
+                            <div style="flex:1;min-width:0">
+                                <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@doc.Title</div>
+                                <div style="color:var(--text-muted);font-size:13px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@doc.Artist</div>
+                            </div>
+                            @if (doc.Approved)
+                            {
+                                <span class="ws-badge-ok">✓</span>
+                            }
+                            else
+                            {
+                                <span class="ws-badge-pend">revisão</span>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(doc.Summary))
+                        {
+                            <p style="font-size:13px;color:var(--text-sub);line-height:1.55;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">@doc.Summary</p>
+                        }
+
+                        <div style="display:flex;flex-wrap:wrap;gap:5px">
+                            @foreach (var t in (doc.Search?.Themes ?? new()).Take(3))
+                            {
+                                <span class="ws-chip ws-chip-theme">@t</span>
+                            }
+                            @foreach (var m in (doc.Search?.Moods ?? new()).Take(2))
+                            {
+                                <span class="ws-chip ws-chip-mood">@m</span>
+                            }
+                            @foreach (var r in (doc.Search?.BiblicalReferences ?? new()).Take(2))
+                            {
+                                <span class="ws-chip ws-chip-ref">@r</span>
+                            }
+                        </div>
+                    </div>
+                    <div style="padding:12px 18px;border-top:1px solid var(--border-card);display:flex;gap:8px">
+                        <a href="@Url.Action("Edit","MusicEditor", new { fileName = item.FileName })" class="ws-btn ws-btn-ghost ws-btn-sm" style="flex:1">
+                            Editar
+                        </a>
+                        @if (!string.IsNullOrWhiteSpace(doc.Metadata?.CanonicalUrl))
+                        {
+                            <a href="@doc.Metadata.CanonicalUrl" target="_blank" rel="noopener" class="ws-btn ws-btn-ghost ws-btn-sm">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(query))
+    {
+        <div style="text-align:center;padding:64px 0;color:var(--text-muted)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" style="margin-bottom:16px;opacity:.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+            <div style="font-size:15px;margin-bottom:8px">Nenhuma música encontrada para "@query"</div>
+            <div style="font-size:13.5px">Tente <a href="@Url.Action("Index","MusicSearch")" style="color:var(--accent)">indexar uma música</a> com esse tema.</div>
+        </div>
+    }
+    else
+    {
+        <div style="text-align:center;padding:64px 0;color:var(--text-muted)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" style="margin-bottom:16px;opacity:.5"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="20" cy="16" r="3"/></svg>
+            <div style="font-size:15px;margin-bottom:8px">Biblioteca vazia</div>
+            <div style="font-size:13.5px"><a href="@Url.Action("Index","MusicSearch")" style="color:var(--accent)">Indexe músicas</a> para começar a pesquisar.</div>
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<script>
+    (function () {
+        var input = document.getElementById('q-input');
+
+        // Suggestion chips: toggle terms in the input, submit on click
+        document.querySelectorAll('.ws-suggestion-chip').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var term = btn.getAttribute('data-suggestion').toLowerCase();
+                var parts = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+                var idx = parts.indexOf(term);
+                if (idx >= 0) {
+                    parts.splice(idx, 1);
+                } else {
+                    parts.push(term);
+                }
+                input.value = parts.join(' ');
+                document.getElementById('search-form').submit();
+            });
+        });
+    })();
+</script>
+}

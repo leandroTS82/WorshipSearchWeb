@@ -1,0 +1,425 @@
+@model WorshipSearchWeb.Models.MusicDocument
+@{
+    ViewData["Title"] = "Preview – " + Model.Title;
+    var alreadyExists = (bool)(ViewBag.AlreadyExists ?? false);
+}
+
+<div style="max-width:1060px;margin:0 auto" class="ws-fade">
+
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:28px;flex-wrap:wrap">
+        <a href="@Url.Action("Index","MusicSearch")" class="ws-btn ws-btn-ghost ws-btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/></svg>
+            Voltar
+        </a>
+        <div style="flex:1">
+            <div style="font-family:'Spectral',serif;font-size:22px">@Model.Title</div>
+            <div style="color:var(--text-muted);font-size:13.5px;margin-top:2px">@Model.Artist</div>
+        </div>
+        @if (alreadyExists)
+        {
+            <span class="ws-badge-pend">já indexada</span>
+        }
+        <button id="enrichBtn" class="ws-btn ws-btn-ghost ws-btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
+            Enriquecer com IA
+        </button>
+        <button id="saveBtn" class="ws-btn ws-btn-primary ws-btn-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Salvar
+        </button>
+    </div>
+
+    <div id="saveMsg" style="display:none;margin-bottom:16px;padding:12px 16px;border-radius:10px;font-size:14px"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start">
+
+        <!-- Left: info + letra -->
+        <div>
+            <div class="ws-card" style="padding:20px;margin-bottom:14px">
+                @if (!string.IsNullOrWhiteSpace(Model.Metadata?.Image))
+                {
+                    <img src="@Model.Metadata.Image" style="width:100%;border-radius:10px;max-height:180px;object-fit:cover;margin-bottom:16px;border:1px solid var(--border)" alt="" />
+                }
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px">
+                    <span style="color:var(--text-muted)">Artista</span><span>@Model.Artist</span>
+                    <span style="color:var(--text-muted)">Gênero</span><span>@Model.Genre</span>
+                    <span style="color:var(--text-muted)">Fonte</span>
+                    <a href="@Model.Metadata?.CanonicalUrl" target="_blank" rel="noopener" style="color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">letras.mus.br</a>
+                </div>
+            </div>
+
+            <div class="ws-card">
+                <div style="padding:12px 18px;border-bottom:1px solid var(--border-card);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Letra</div>
+                <pre id="lyricsDisplay" style="padding:16px 18px;margin:0;white-space:pre-wrap;font-family:inherit;font-size:13.5px;color:var(--text-sub);line-height:1.7;max-height:460px;overflow-y:auto">@Model.Lyrics</pre>
+            </div>
+        </div>
+
+        <!-- Right: enrichment panel -->
+        <div class="ws-card">
+            <div style="padding:16px 20px;border-bottom:1px solid var(--border-card)">
+                <div style="font-weight:500;margin-bottom:4px">Enriquecimento com IA</div>
+                <div style="font-size:12.5px;color:var(--text-muted)">Análise parágrafo a parágrafo com chaves independentes por requisição.</div>
+            </div>
+
+            <!-- Progress -->
+            <div id="progressArea" style="display:none;padding:20px">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                    <div class="ws-spinner"></div>
+                    <span id="progressLabel" style="font-size:14px;color:var(--text-sub)">Iniciando…</span>
+                </div>
+                <div style="background:var(--bg);border-radius:8px;height:6px;overflow:hidden">
+                    <div id="progressBar" style="height:100%;background:var(--accent);width:0%;transition:width .3s ease;border-radius:8px"></div>
+                </div>
+                <div id="progressLog" style="margin-top:14px;font-size:12.5px;color:var(--text-dim);line-height:1.8;max-height:120px;overflow-y:auto"></div>
+            </div>
+
+            <!-- Empty state -->
+            <div id="noEnrich" style="padding:40px 24px;text-align:center;color:var(--text-muted)">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:12px;opacity:.4"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
+                <div style="font-size:14px;margin-bottom:6px">Clique em <strong style="color:var(--text)">Enriquecer com IA</strong></div>
+                <div style="font-size:12.5px">A letra será analisada estrofe por estrofe usando chaves LLM independentes.</div>
+            </div>
+
+            <!-- Result -->
+            <div id="enrichResult" style="display:none;padding:20px">
+
+                <!-- Worship Moments -->
+                <div class="ws-form-group" style="margin-bottom:20px">
+                    <div class="ws-label" style="margin-bottom:10px">Momento do Culto <span style="font-weight:400;color:var(--text-dim);font-size:11px">(selecione um ou mais)</span></div>
+                    <div id="moments-area" style="display:flex;flex-wrap:wrap;gap:7px">
+                        @foreach (var m in new[]{"Celebração","Adoração","Santa Ceia","Apelo","Intercessão","Ofertório","Abertura","Encerramento"})
+                        {
+                            <button type="button" class="ws-moment-btn" data-moment="@m" onclick="toggleMoment('@m',this)">@m</button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="ws-form-group">
+                    <div class="ws-label">Resumo</div>
+                    <div id="r-summary" style="font-size:13.5px;color:var(--text-sub);line-height:1.6;background:var(--bg-input);border:1px solid var(--border-card);border-radius:8px;padding:11px 13px;min-height:48px"></div>
+                </div>
+
+                <!-- Tag categories -->
+                @{
+                    var tagGroups = new[]
+                    {
+                        ("Temas", "themes", "ws-chip-theme"),
+                        ("Emoções", "moods", "ws-chip-mood"),
+                        ("Referências Bíblicas", "biblical_references", "ws-chip-ref"),
+                        ("Contextos", "contexts", "ws-chip"),
+                        ("Palavras-chave", "keywords", "ws-chip"),
+                        ("Tópicos Bíblicos", "biblical_topics", "ws-chip"),
+                        ("Livros Bíblicos", "biblical_books", "ws-chip"),
+                        ("Personagens Bíblicos", "biblical_characters", "ws-chip"),
+                        ("Sinônimos", "synonyms", "ws-chip"),
+                    };
+                }
+
+                @foreach (var (label, field, chipCls) in tagGroups)
+                {
+                    <div class="ws-form-group" style="margin-bottom:14px">
+                        <div class="ws-label" style="margin-bottom:6px">@label</div>
+                        <div id="r-@field" data-field="@field" data-chip-cls="@chipCls" class="tag-group" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px;align-items:center"></div>
+                        <div style="display:flex;gap:6px;margin-top:6px">
+                            <input type="text" class="ws-input custom-tag-input" data-field="@field" data-chip-cls="@chipCls"
+                                   style="flex:1;padding:5px 10px;font-size:12.5px;border-radius:8px" placeholder="Adicionar tag…" />
+                            <button class="ws-btn ws-btn-ghost custom-tag-btn" data-field="@field" data-chip-cls="@chipCls"
+                                    style="padding:5px 10px;font-size:12px">+</button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Style / Energy / Occasion -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:4px">
+                    <div>
+                        <div class="ws-label">Estilo</div>
+                        <input type="text" id="r-worship_style" class="ws-input" style="padding:7px 10px;font-size:13px" />
+                    </div>
+                    <div>
+                        <div class="ws-label">Energia</div>
+                        <input type="text" id="r-energy_level" class="ws-input" style="padding:7px 10px;font-size:13px" />
+                    </div>
+                    <div>
+                        <div class="ws-label">Ocasião</div>
+                        <input type="text" id="r-occasion" class="ws-input" style="padding:7px 10px;font-size:13px" />
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="editLinkArea" style="display:none;padding:14px 20px;border-top:1px solid var(--border-card)">
+                <a href="#" id="editLink" class="ws-btn ws-btn-ghost ws-btn-sm">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Editar na Biblioteca
+                </a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<style>
+.ws-moment-btn {
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border-card);
+    background: var(--bg-input);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+}
+.ws-moment-btn:hover { border-color: var(--accent-line); color: var(--text); }
+.ws-moment-btn.selected {
+    background: var(--accent-soft);
+    border-color: var(--accent-line);
+    color: var(--accent);
+    font-weight: 500;
+}
+</style>
+<script>
+var docData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model, new System.Text.Json.JsonSerializerOptions {
+    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    PropertyNamingPolicy = null
+}));
+
+// Ensure search object exists
+if (!docData.search) docData.search = {};
+var arrayFields = ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms','worship_moments'];
+arrayFields.forEach(function(f){ if (!docData.search[f]) docData.search[f] = []; });
+if (!docData.search.worship_style) docData.search.worship_style = '';
+if (!docData.search.energy_level) docData.search.energy_level = '';
+if (!docData.search.occasion) docData.search.occasion = '';
+if (!docData.search.worship_moments) docData.search.worship_moments = [];
+
+// Init moment buttons from existing data
+(docData.search.worship_moments || []).forEach(function(m){
+    $('.ws-moment-btn[data-moment="' + m + '"]').addClass('selected');
+});
+
+function toggleMoment(moment, btn) {
+    var moments = docData.search.worship_moments || [];
+    var idx = moments.indexOf(moment);
+    if (idx === -1) {
+        moments.push(moment);
+        $(btn).addClass('selected');
+    } else {
+        moments.splice(idx, 1);
+        $(btn).removeClass('selected');
+    }
+    docData.search.worship_moments = moments;
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ---- Chip rendering ----
+function renderChip(field, value, chipCls) {
+    return '<span class="' + chipCls + '" style="display:inline-flex;align-items:center;gap:4px">' +
+        escHtml(value) +
+        '<button onclick="removeTag(\'' + field + '\',\'' + escHtml(value).replace(/'/g,"&#39;") + '\',this)" ' +
+        'style="background:none;border:none;cursor:pointer;color:inherit;font-size:14px;line-height:1;padding:0 1px;opacity:.6">×</button>' +
+        '</span>';
+}
+
+function renderTagGroup(field, values, chipCls) {
+    var container = $('#r-' + field);
+    container.html('');
+    if (!values || values.length === 0) {
+        container.html('<span style="color:var(--text-dim);font-size:12px">—</span>');
+        return;
+    }
+    values.forEach(function(v){ container.append(renderChip(field, v, chipCls)); });
+}
+
+function removeTag(field, value, btn) {
+    var arr = docData.search[field];
+    if (!arr) return;
+    docData.search[field] = arr.filter(function(v){ return v !== value; });
+    renderTagGroup(field, docData.search[field], $(btn).closest('.tag-group').data('chip-cls'));
+}
+
+function mergeTagsIntoDoc(newTags) {
+    // Merge arrays (no duplicates)
+    arrayFields.forEach(function(f) {
+        var existing = docData.search[f] || [];
+        var added = (newTags[f] || []).filter(function(v){
+            return v && !existing.some(function(e){ return e.toLowerCase() === v.toLowerCase(); });
+        });
+        docData.search[f] = existing.concat(added);
+    });
+    // Scalar fields: only set if currently empty
+    if (!docData.search.worship_style && newTags.worship_style)
+        docData.search.worship_style = newTags.worship_style;
+    if (!docData.search.energy_level && newTags.energy_level)
+        docData.search.energy_level = newTags.energy_level;
+    if (!docData.search.occasion && newTags.occasion)
+        docData.search.occasion = newTags.occasion;
+}
+
+function refreshAllTagUIs() {
+    $('.tag-group').each(function(){
+        var field = $(this).data('field');
+        var chipCls = $(this).data('chip-cls');
+        renderTagGroup(field, docData.search[field], chipCls);
+    });
+    $('#r-worship_style').val(docData.search.worship_style || '');
+    $('#r-energy_level').val(docData.search.energy_level || '');
+    $('#r-occasion').val(docData.search.occasion || '');
+}
+
+// ---- Custom tag input ----
+$(document).on('click', '.custom-tag-btn', function(){
+    var field = $(this).data('field');
+    var chipCls = $(this).data('chip-cls');
+    var input = $('.custom-tag-input[data-field="' + field + '"]');
+    var val = input.val().trim();
+    if (!val) return;
+    if (!docData.search[field]) docData.search[field] = [];
+    if (!docData.search[field].some(function(e){ return e.toLowerCase() === val.toLowerCase(); })) {
+        docData.search[field].push(val);
+        renderTagGroup(field, docData.search[field], chipCls);
+    }
+    input.val('').focus();
+});
+
+$(document).on('keydown', '.custom-tag-input', function(e){
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        $('.custom-tag-btn[data-field="' + $(this).data('field') + '"]').click();
+    }
+});
+
+// Sync scalar fields back to docData on change
+$('#r-worship_style').on('input', function(){ docData.search.worship_style = $(this).val(); });
+$('#r-energy_level').on('input', function(){ docData.search.energy_level = $(this).val(); });
+$('#r-occasion').on('input', function(){ docData.search.occasion = $(this).val(); });
+
+// ---- Paragraph enrichment ----
+function getParagraphs() {
+    var lyrics = docData.lyrics || '';
+    return lyrics.split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+}
+
+function log(msg) {
+    var el = $('#progressLog');
+    el.append('<div>' + escHtml(msg) + '</div>');
+    el[0].scrollTop = el[0].scrollHeight;
+}
+
+function setProgress(current, total) {
+    var pct = total > 0 ? Math.round((current / total) * 100) : 0;
+    $('#progressBar').css('width', pct + '%');
+    $('#progressLabel').text('Parágrafo ' + current + ' de ' + total + '…');
+}
+
+async function runEnrichment() {
+    var paragraphs = getParagraphs();
+    if (paragraphs.length === 0) {
+        alert('Nenhuma estrofe encontrada na letra.');
+        return;
+    }
+
+    $('#enrichBtn').prop('disabled', true);
+    $('#noEnrich').hide();
+    $('#enrichResult').hide();
+    $('#progressArea').show();
+    $('#progressLog').html('');
+    setProgress(0, paragraphs.length);
+
+    // Process each paragraph sequentially
+    for (var i = 0; i < paragraphs.length; i++) {
+        setProgress(i + 1, paragraphs.length);
+        log('Estrofe ' + (i + 1) + '/' + paragraphs.length + ': "' + paragraphs[i].substring(0, 50).replace(/\n/g,' ') + '…"');
+
+        try {
+            var result = await $.ajax({
+                url: '@Url.Action("EnrichParagraph","MusicIndex")',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    paragraph: paragraphs[i],
+                    title: docData.title || '',
+                    artist: docData.artist || '',
+                    existing_tags: docData.search
+                })
+            });
+            mergeTagsIntoDoc(result);
+            log('  ✓ Tags acumuladas: ' + arrayFields.reduce(function(a,f){ return a + (docData.search[f]||[]).length; }, 0));
+        } catch (err) {
+            log('  ✗ Erro na estrofe ' + (i+1) + ' – continuando…');
+        }
+    }
+
+    // Final: generate summary/explanation/practical_application
+    log('Gerando resumo e explicação teológica…');
+    $('#progressLabel').text('Finalizando…');
+
+    try {
+        var summaryResult = await $.ajax({
+            url: '@Url.Action("EnrichSummary","MusicIndex")',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(docData)
+        });
+        docData.summary = summaryResult.summary || '';
+        docData.explanation = summaryResult.explanation || '';
+        docData.practical_application = summaryResult.practical_application || '';
+        log('✓ Enriquecimento concluído!');
+    } catch (err) {
+        log('✗ Erro ao gerar resumo – os dados de tags foram salvos.');
+    }
+
+    // Show results
+    setProgress(paragraphs.length, paragraphs.length);
+    setTimeout(function(){
+        $('#progressArea').hide();
+        $('#enrichResult').show();
+        $('#r-summary').text(docData.summary || '—');
+        refreshAllTagUIs();
+        $('#enrichBtn').prop('disabled', false).html(
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg> Re-enriquecer'
+        );
+    }, 600);
+}
+
+$('#enrichBtn').click(runEnrichment);
+
+// ---- Save ----
+$('#saveBtn').click(function(){
+    var btn = $(this).prop('disabled', true);
+    btn.html('<div class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle"></div> Salvando…');
+
+    $.ajax({
+        url: '@Url.Action("Save","MusicIndex")',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(docData),
+        success: function(r) {
+            btn.html('✓ Salvo!');
+            showSaveMsg('Música salva com sucesso!', 'success');
+            var editUrl = '@Url.Action("Edit","MusicEditor")?fileName=' + encodeURIComponent(r.fileName);
+            $('#editLink').attr('href', editUrl);
+            $('#editLinkArea').show();
+            setTimeout(function(){ btn.prop('disabled', false).html('<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Salvar'); }, 2000);
+        },
+        error: function(xhr) {
+            showSaveMsg('Erro: ' + ((xhr.responseJSON && xhr.responseJSON.error) || xhr.statusText), 'danger');
+            btn.prop('disabled', false).html('Salvar');
+        }
+    });
+});
+
+function showSaveMsg(msg, type) {
+    var bg = type === 'success' ? '#122016' : '#2a1215';
+    var border = type === 'success' ? '#1d4a2b' : '#5c2b2e';
+    var color = type === 'success' ? '#69d18a' : '#ff8a80';
+    $('#saveMsg').attr('style','display:block;padding:12px 16px;border-radius:10px;font-size:14px;margin-bottom:16px;background:' + bg + ';border:1px solid ' + border + ';color:' + color).text(msg);
+    setTimeout(function(){ $('#saveMsg').fadeOut(); }, 3000);
+}
+</script>
+}

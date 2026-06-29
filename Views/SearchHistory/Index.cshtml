@@ -1,0 +1,136 @@
+@model List<WorshipSearchWeb.Models.SearchHistoryEntry>
+@{
+    ViewData["Title"] = "Histórico de Buscas";
+
+    var searches = Model.Where(e => e.ResultCount >= 0).ToList();
+    var gaps = searches.Where(e => e.ResultCount == 0).ToList();
+    var lowResults = searches.Where(e => e.ResultCount > 0 && e.ResultCount <= 2).ToList();
+
+    // Aggregate: group by query, keep latest + min result count
+    var aggregated = searches
+        .GroupBy(e => e.Query)
+        .Select(g => new {
+            Query = g.Key,
+            Count = g.Count(),
+            MinResults = g.Min(e => e.ResultCount),
+            MaxResults = g.Max(e => e.ResultCount),
+            LastSearched = g.Max(e => e.SearchedAt)
+        })
+        .OrderByDescending(x => x.LastSearched)
+        .ToList();
+}
+
+<div style="max-width:900px;margin:0 auto" class="ws-fade">
+
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:12px">
+        <div>
+            <div class="ws-page-title">Histórico de Buscas</div>
+            <div class="ws-page-sub">Consultas realizadas na biblioteca de louvores. Gaps indicam onde falta indexação.</div>
+        </div>
+        <button id="clearBtn" class="ws-btn ws-btn-ghost ws-btn-sm" style="flex-shrink:0">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Limpar histórico
+        </button>
+    </div>
+
+    <!-- Stats strip -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
+        <div class="ws-card" style="padding:18px 20px">
+            <div style="font-size:26px;font-weight:600;color:var(--text)">@aggregated.Count</div>
+            <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">Queries únicas</div>
+        </div>
+        <div class="ws-card" style="padding:18px 20px;border-color:rgba(214,100,80,.3)">
+            <div style="font-size:26px;font-weight:600;color:#e89080">@gaps.Select(e=>e.Query).Distinct().Count()</div>
+            <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">Sem resultado (gaps)</div>
+        </div>
+        <div class="ws-card" style="padding:18px 20px;border-color:rgba(200,160,50,.3)">
+            <div style="font-size:26px;font-weight:600;color:#c9a857">@lowResults.Select(e=>e.Query).Distinct().Count()</div>
+            <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">Resultado baixo (≤ 2)</div>
+        </div>
+    </div>
+
+    <!-- Gaps highlight -->
+    @if (gaps.Any())
+    {
+        <div class="ws-card" style="padding:20px;margin-bottom:20px;border-color:rgba(214,100,80,.25)">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#e89080;margin-bottom:12px">
+                Gaps — buscas sem resultado (indexar mais músicas sobre esses temas)
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px">
+                @foreach (var q in gaps.Select(e => e.Query).Distinct())
+                {
+                    <a href="@Url.Action("Index","Home")?q=@Uri.EscapeDataString(q)"
+                       style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;background:rgba(214,100,80,.12);border:1px solid rgba(214,100,80,.28);color:#e89080;font-size:13px;text-decoration:none">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+                        @q
+                    </a>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Full history table -->
+    <div class="ws-card" style="overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Todas as queries (@aggregated.Count)</span>
+            <input type="text" id="filterInput" class="ws-input" style="width:220px;padding:6px 12px;font-size:13px;border-radius:8px" placeholder="Filtrar…" />
+        </div>
+        <div style="overflow-x:auto">
+            <table id="historyTable" style="width:100%;border-collapse:collapse;font-size:13.5px">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border-card)">
+                        <th style="padding:10px 18px;text-align:left;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Query</th>
+                        <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Vezes</th>
+                        <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Resultados</th>
+                        <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Última busca</th>
+                        <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in aggregated)
+                    {
+                        var resultColor = row.MinResults == 0 ? "#e89080" : row.MinResults <= 2 ? "#c9a857" : "var(--text-sub)";
+                        var resultLabel = row.MinResults == 0 ? "sem resultado" : row.MinResults == row.MaxResults ? row.MinResults.ToString() : $"{row.MinResults}–{row.MaxResults}";
+                        var dt = DateTime.TryParse(row.LastSearched, out var d) ? d.ToLocalTime().ToString("dd/MM HH:mm") : "—";
+
+                        <tr class="hist-row" style="border-bottom:1px solid var(--border-card)" data-query="@row.Query">
+                            <td style="padding:10px 18px;color:var(--text)">@row.Query</td>
+                            <td style="padding:10px 12px;text-align:center;color:var(--text-muted)">@row.Count</td>
+                            <td style="padding:10px 12px;text-align:center;color:@resultColor;font-weight:500">@resultLabel</td>
+                            <td style="padding:10px 12px;text-align:center;color:var(--text-dim);font-size:12.5px">@dt</td>
+                            <td style="padding:10px 12px;text-align:center">
+                                <a href="@Url.Action("Index","Home")?q=@Uri.EscapeDataString(row.Query)"
+                                   class="ws-btn ws-btn-ghost ws-btn-sm" style="font-size:12px;padding:4px 10px">
+                                    Buscar
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (!aggregated.Any())
+            {
+                <div style="padding:48px;text-align:center;color:var(--text-muted)">Nenhuma busca registrada ainda.</div>
+            }
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+$('#filterInput').on('input', function(){
+    var q = $(this).val().toLowerCase();
+    $('.hist-row').each(function(){
+        $(this).toggle(!q || $(this).data('query').includes(q));
+    });
+});
+
+$('#clearBtn').click(function(){
+    if (!confirm('Limpar todo o histórico de buscas?')) return;
+    $.post('@Url.Action("Clear","SearchHistory")', function(){
+        location.reload();
+    });
+});
+</script>
+}
