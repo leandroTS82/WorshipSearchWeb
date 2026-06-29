@@ -29,9 +29,8 @@
 
     <div id="statusMsg" style="display:none;margin-bottom:16px"></div>
 
-    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:18px;align-items:start">
+    <div class="ws-editor-grid" style="display:grid;grid-template-columns:1fr 1.5fr;gap:18px;align-items:start">
 
-        {{-- Left --}}
         <div>
             <div class="ws-card" style="padding:20px;margin-bottom:14px">
                 <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Informações Básicas</div>
@@ -79,7 +78,13 @@
             </div>
 
             <div class="ws-card" style="margin-bottom:14px">
-                <div style="padding:14px 18px;border-bottom:1px solid var(--border-card);font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Letra</div>
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between">
+                    <span style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Letra</span>
+                    <button type="button" id="copyLyricsBtn" onclick="copyLyrics()" class="ws-btn ws-btn-ghost ws-btn-sm" style="padding:4px 10px;font-size:12px">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        Copiar
+                    </button>
+                </div>
                 <textarea id="f-lyrics" class="ws-input" style="border:none;border-radius:0;min-height:260px;padding:16px 18px;font-size:13.5px;line-height:1.7;color:var(--text-sub)">@Model.Lyrics</textarea>
             </div>
 
@@ -96,7 +101,6 @@
             </div>
         </div>
 
-        {{-- Right --}}
         <div>
             <div class="ws-card" style="padding:20px;margin-bottom:14px">
                 <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Conteúdo IA</div>
@@ -175,6 +179,9 @@
 }
 .ws-moment-btn:hover { border-color: var(--accent-line); color: var(--text); }
 .ws-moment-btn.selected { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 500; }
+@@media (max-width: 860px) {
+    .ws-editor-grid { grid-template-columns: 1fr !important; }
+}
 </style>
 <script>
 var editorMoments = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Search?.WorshipMoments ?? new System.Collections.Generic.List<string>()));
@@ -265,24 +272,58 @@ $('#saveBtn').click(function(){
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(collectDoc()),
-        success: function(){ showStatus('✓ Salvo com sucesso!', 'success'); btn.prop('disabled', false); },
+        success: function(){
+            showStatus('✓ Salvo com sucesso! Redirecionando…', 'success');
+            setTimeout(function(){ window.location.href = '@Url.Action("Index","Home")'; }, 800);
+        },
         error: function(xhr){ showStatus('Erro ao salvar: ' + ((xhr.responseJSON && xhr.responseJSON.error) || xhr.statusText), 'danger'); btn.prop('disabled', false); }
     });
 });
 
+function copyLyrics() {
+    var text = document.getElementById('f-lyrics').value;
+    navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copyLyricsBtn');
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Copiado!';
+        setTimeout(function(){ btn.innerHTML = orig; }, 1500);
+    }).catch(function() {
+        var ta = document.getElementById('f-lyrics');
+        ta.select();
+        document.execCommand('copy');
+    });
+}
+
 // Paragraph-by-paragraph enrichment (same flow as Preview)
+function getUniqueParagraphs(lyrics) {
+    var all = (lyrics || '').split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    var seen = {};
+    var unique = [];
+    var skipped = 0;
+    all.forEach(function(p) {
+        var key = p.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (seen[key]) { skipped++; return; }
+        seen[key] = true;
+        unique.push(p);
+    });
+    unique._skipped = skipped;
+    return unique;
+}
+
 $('#enrichBtn').click(async function(){
     var btn = $(this).prop('disabled', true);
     var doc = collectDoc();
-    var paragraphs = (doc.lyrics || '').split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    var paragraphs = getUniqueParagraphs(doc.lyrics);
     if (!paragraphs.length) { showStatus('Nenhuma estrofe encontrada na letra.', 'danger'); btn.prop('disabled', false); return; }
+
+    var skippedMsg = paragraphs._skipped > 0 ? ' (' + paragraphs._skipped + ' repetida(s) ignorada(s))' : '';
 
     var accumulated = { themes:[], moods:[], contexts:[], keywords:[], biblical_topics:[], biblical_references:[], biblical_books:[], biblical_characters:[], synonyms:[], worship_style:'', energy_level:'', occasion:'', worship_moments:[] };
 
-    showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Analisando estrofe 1/' + paragraphs.length + '…', 'info');
+    showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Analisando ' + paragraphs.length + ' estrofe(s) única(s)' + skippedMsg + '…', 'info');
 
     for (var i = 0; i < paragraphs.length; i++) {
-        showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Estrofe ' + (i+1) + '/' + paragraphs.length + '…', 'info');
+        showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Estrofe ' + (i+1) + '/' + paragraphs.length + skippedMsg + '…', 'info');
         try {
             var newTags = await $.ajax({ url: '@Url.Action("EnrichParagraph","MusicIndex")', method: 'POST', contentType: 'application/json',
                 data: JSON.stringify({ paragraph: paragraphs[i], title: doc.title, artist: doc.artist, existing_tags: accumulated }) });
