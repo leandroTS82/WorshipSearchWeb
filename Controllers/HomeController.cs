@@ -32,7 +32,7 @@ public class HomeController : Controller
         // Fallback: se não encontrou nada, expande via LLM e re-busca
         if (results.Count == 0 && !string.IsNullOrWhiteSpace(q))
         {
-            var expandedQ = await _expansion.ExpandAsync(q);
+            var (expandedQ, expandedDescription) = await _expansion.ExpandAsync(q);
             if (!string.IsNullOrWhiteSpace(expandedQ))
             {
                 var expandedQuery = new SearchQuery { Query = expandedQ, ApprovedOnly = approvedOnly };
@@ -41,6 +41,7 @@ public class HomeController : Controller
                 {
                     results = expandedResults;
                     ViewBag.LlmExpanded = true;
+                    ViewBag.LlmExpandedDescription = expandedDescription;
                 }
             }
         }
@@ -51,8 +52,12 @@ public class HomeController : Controller
             catch (Exception ex) { _logger.LogWarning(ex, "Failed to log search history"); }
         }
 
+        var criteriaCount = string.IsNullOrWhiteSpace(q) ? 0
+            : q.Split(';', StringSplitOptions.RemoveEmptyEntries).Count(c => c.Trim().Length > 0);
+
         ViewBag.Query = q;
         ViewBag.ApprovedOnly = approvedOnly;
+        ViewBag.CriteriaCount = criteriaCount;
         return View(results);
     }
 

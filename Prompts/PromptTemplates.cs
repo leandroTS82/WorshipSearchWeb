@@ -39,17 +39,25 @@ Retorne APENAS o JSON, sem texto extra.";
 
     public const string QueryExpansionTemplate = @"Você é um assistente de busca de músicas cristãs em português (pt-BR).
 
-Consulta do usuário: ""{query}""
+O usuário quer encontrar músicas relacionadas a:
+{criteria_list}
 
-Gere de 5 a 8 termos de busca alternativos (sinônimos, conceitos relacionados, termos bíblicos) que possam localizar músicas cristãs relacionadas a essa consulta.
+Para CADA critério acima, gere de 4 a 6 termos alternativos (sinônimos, conceitos bíblicos, emoções ou contextos relacionados) que possam localizar músicas cristãs sobre esse assunto.
 
 REGRAS:
 - Apenas português (pt-BR)
 - Contexto cristão/evangélico
 - Termos curtos e pesquisáveis (1-3 palavras)
-- Não repita a consulta original
+- Não repita o critério original
 
-Retorne APENAS um array JSON de strings. Sem texto extra. Exemplo: [""fé"", ""confiança"", ""Salmos""]";
+Retorne APENAS um JSON com este formato exato, sem texto extra:
+{{
+  ""description"": ""frase curta em português descrevendo os critérios buscados (ex: 'libertação divina e Salmos 21')"",
+  ""criteria"": [
+    {{ ""original"": ""critério original"", ""terms"": [""termo1"", ""termo2"", ""termo3""] }},
+    ...
+  ]
+}}";
 
     public const string SummaryTemplate = @"Você é especialista em música cristã e teologia evangélica. Analise a música ""{title}"" de {artist}.
 
