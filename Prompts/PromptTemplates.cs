@@ -37,6 +37,20 @@ themes, moods, contexts, keywords, biblical_topics, biblical_references, biblica
 
 Retorne APENAS o JSON, sem texto extra.";
 
+    public const string QueryExpansionTemplate = @"Você é um assistente de busca de músicas cristãs em português (pt-BR).
+
+Consulta do usuário: ""{query}""
+
+Gere de 5 a 8 termos de busca alternativos (sinônimos, conceitos relacionados, termos bíblicos) que possam localizar músicas cristãs relacionadas a essa consulta.
+
+REGRAS:
+- Apenas português (pt-BR)
+- Contexto cristão/evangélico
+- Termos curtos e pesquisáveis (1-3 palavras)
+- Não repita a consulta original
+
+Retorne APENAS um array JSON de strings. Sem texto extra. Exemplo: [""fé"", ""confiança"", ""Salmos""]";
+
     public const string SummaryTemplate = @"Você é especialista em música cristã e teologia evangélica. Analise a música ""{title}"" de {artist}.
 
 Tags identificadas:

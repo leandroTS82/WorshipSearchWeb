@@ -32,6 +32,7 @@ builder.Services.AddSingleton<IMusicRepository, MusicRepository>();
 builder.Services.AddSingleton<ISearchRestrictionsService, SearchRestrictionsService>();
 builder.Services.AddSingleton<ISearchHistoryService, SearchHistoryService>();
 builder.Services.AddSingleton<IJsonSearchEngine, JsonSearchEngine>();
+builder.Services.AddScoped<IQueryExpansionService, QueryExpansionService>();
 
 var app = builder.Build();
 

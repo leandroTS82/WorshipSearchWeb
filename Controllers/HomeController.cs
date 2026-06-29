@@ -9,12 +9,18 @@ public class HomeController : Controller
 {
     private readonly IJsonSearchEngine _searchEngine;
     private readonly ISearchHistoryService _history;
+    private readonly IQueryExpansionService _expansion;
     private readonly ILogger<HomeController> _logger;
 
-    public HomeController(IJsonSearchEngine searchEngine, ISearchHistoryService history, ILogger<HomeController> logger)
+    public HomeController(
+        IJsonSearchEngine searchEngine,
+        ISearchHistoryService history,
+        IQueryExpansionService expansion,
+        ILogger<HomeController> logger)
     {
         _searchEngine = searchEngine;
         _history = history;
+        _expansion = expansion;
         _logger = logger;
     }
 
@@ -22,6 +28,22 @@ public class HomeController : Controller
     {
         var query = new SearchQuery { Query = q ?? string.Empty, ApprovedOnly = approvedOnly };
         var results = await _searchEngine.SearchAsync(query);
+
+        // Fallback: se não encontrou nada, expande via LLM e re-busca
+        if (results.Count == 0 && !string.IsNullOrWhiteSpace(q))
+        {
+            var expandedQ = await _expansion.ExpandAsync(q);
+            if (!string.IsNullOrWhiteSpace(expandedQ))
+            {
+                var expandedQuery = new SearchQuery { Query = expandedQ, ApprovedOnly = approvedOnly };
+                var expandedResults = await _searchEngine.SearchAsync(expandedQuery);
+                if (expandedResults.Count > 0)
+                {
+                    results = expandedResults;
+                    ViewBag.LlmExpanded = true;
+                }
+            }
+        }
 
         if (!string.IsNullOrWhiteSpace(q))
         {
