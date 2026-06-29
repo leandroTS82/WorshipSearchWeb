@@ -76,8 +76,9 @@
             @foreach (var item in Model)
             {
                 var doc = item.Document;
+                var editUrl = Url.Action("Edit","MusicEditor", new { fileName = item.FileName })!;
                 <div class="ws-card ws-fade">
-                    <div style="padding:18px 18px 14px">
+                    <a href="@editUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
                         <div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:12px">
                             @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
                             {
@@ -106,7 +107,8 @@
 
                         @if (!string.IsNullOrWhiteSpace(doc.Summary))
                         {
-                            <p style="font-size:13px;color:var(--text-sub);line-height:1.55;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">@doc.Summary</p>
+                            <p class="ws-summary-text" style="font-size:13px;color:var(--text-sub);line-height:1.55;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer"
+                               onclick="event.preventDefault();toggleSummary(this)">@doc.Summary</p>
                         }
 
                         <div style="display:flex;flex-wrap:wrap;gap:5px">
@@ -123,9 +125,9 @@
                                 <span class="ws-chip ws-chip-ref">@r</span>
                             }
                         </div>
-                    </div>
+                    </a>
                     <div style="padding:12px 18px;border-top:1px solid var(--border-card);display:flex;gap:8px">
-                        <a href="@Url.Action("Edit","MusicEditor", new { fileName = item.FileName })" class="ws-btn ws-btn-ghost ws-btn-sm" style="flex:1">
+                        <a href="@editUrl" class="ws-btn ws-btn-ghost ws-btn-sm" style="flex:1">
                             Editar
                         </a>
                         @if (!string.IsNullOrWhiteSpace(doc.Metadata?.CanonicalUrl))
@@ -179,5 +181,17 @@
             });
         });
     })();
+
+    function toggleSummary(el) {
+        if (el.style.webkitLineClamp === 'unset' || el.style.overflow === 'visible') {
+            el.style.webkitLineClamp = '2';
+            el.style.overflow = 'hidden';
+            el.style.display = '-webkit-box';
+        } else {
+            el.style.webkitLineClamp = 'unset';
+            el.style.overflow = 'visible';
+            el.style.display = 'block';
+        }
+    }
 </script>
 }

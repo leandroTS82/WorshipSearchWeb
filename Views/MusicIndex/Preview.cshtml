@@ -31,7 +31,7 @@
 
     <div id="saveMsg" style="display:none;margin-bottom:16px;padding:12px 16px;border-radius:10px;font-size:14px"></div>
 
-    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start">
+    <div class="ws-preview-grid" style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start">
 
         <!-- Left: info + letra -->
         <div>
@@ -49,7 +49,13 @@
             </div>
 
             <div class="ws-card">
-                <div style="padding:12px 18px;border-bottom:1px solid var(--border-card);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Letra</div>
+                <div style="padding:12px 18px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between">
+                    <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Letra</span>
+                    <button type="button" id="copyLyricsBtn" onclick="copyLyrics()" class="ws-btn ws-btn-ghost ws-btn-sm" style="padding:4px 10px;font-size:12px">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        Copiar
+                    </button>
+                </div>
                 <pre id="lyricsDisplay" style="padding:16px 18px;margin:0;white-space:pre-wrap;font-family:inherit;font-size:13.5px;color:var(--text-sub);line-height:1.7;max-height:460px;overflow-y:auto">@Model.Lyrics</pre>
             </div>
         </div>
@@ -57,8 +63,7 @@
         <!-- Right: enrichment panel -->
         <div class="ws-card">
             <div style="padding:16px 20px;border-bottom:1px solid var(--border-card)">
-                <div style="font-weight:500;margin-bottom:4px">Enriquecimento com IA</div>
-                <div style="font-size:12.5px;color:var(--text-muted)">Análise parágrafo a parágrafo com chaves independentes por requisição.</div>
+                <div style="font-weight:500">Enriquecimento com IA</div>
             </div>
 
             <!-- Progress -->
@@ -76,8 +81,7 @@
             <!-- Empty state -->
             <div id="noEnrich" style="padding:40px 24px;text-align:center;color:var(--text-muted)">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:12px;opacity:.4"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
-                <div style="font-size:14px;margin-bottom:6px">Clique em <strong style="color:var(--text)">Enriquecer com IA</strong></div>
-                <div style="font-size:12.5px">A letra será analisada estrofe por estrofe usando chaves LLM independentes.</div>
+                <div style="font-size:14px">Clique em <strong style="color:var(--text)">Enriquecer com IA</strong></div>
             </div>
 
             <!-- Result -->
@@ -178,6 +182,9 @@
     border-color: var(--accent-line);
     color: var(--accent);
     font-weight: 500;
+}
+@@media (max-width: 860px) {
+    .ws-preview-grid { grid-template-columns: 1fr !important; }
 }
 </style>
 <script>
@@ -401,11 +408,8 @@ $('#saveBtn').click(function(){
         data: JSON.stringify(docData),
         success: function(r) {
             btn.html('✓ Salvo!');
-            showSaveMsg('Música salva com sucesso!', 'success');
-            var editUrl = '@Url.Action("Edit","MusicEditor")?fileName=' + encodeURIComponent(r.fileName);
-            $('#editLink').attr('href', editUrl);
-            $('#editLinkArea').show();
-            setTimeout(function(){ btn.prop('disabled', false).html('<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Salvar'); }, 2000);
+            showSaveMsg('Música salva! Redirecionando…', 'success');
+            setTimeout(function(){ window.location.href = '@Url.Action("Index","Home")'; }, 900);
         },
         error: function(xhr) {
             showSaveMsg('Erro: ' + ((xhr.responseJSON && xhr.responseJSON.error) || xhr.statusText), 'danger');
@@ -413,6 +417,23 @@ $('#saveBtn').click(function(){
         }
     });
 });
+
+function copyLyrics() {
+    var text = document.getElementById('lyricsDisplay').textContent;
+    navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copyLyricsBtn');
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Copiado!';
+        setTimeout(function(){ btn.innerHTML = orig; }, 1500);
+    }).catch(function() {
+        var range = document.createRange();
+        range.selectNode(document.getElementById('lyricsDisplay'));
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+    });
+}
 
 function showSaveMsg(msg, type) {
     var bg = type === 'success' ? '#122016' : '#2a1215';

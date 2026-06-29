@@ -109,8 +109,9 @@ public class JsonSearchEngine : IJsonSearchEngine
         return 0;
     }
 
-    private static double ScoreList(List<string> list, string term, double weight)
+    private static double ScoreList(List<string>? list, string term, double weight)
     {
+        if (list == null) return 0;
         double score = 0;
         foreach (var item in list)
             score += ScoreField(item, term, weight);

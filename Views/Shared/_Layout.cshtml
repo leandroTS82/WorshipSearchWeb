@@ -227,18 +227,53 @@
         .ws-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
         @@keyframes spin { to { transform: rotate(360deg); } }
 
+        /* Hamburger button */
+        #ws-hamburger {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 8px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+        #ws-hamburger:hover { background: #241f18; color: var(--text); }
+
+        /* Mobile nav overlay */
+        #ws-nav-mobile {
+            display: none;
+            position: fixed;
+            top: 57px;
+            left: 0;
+            right: 0;
+            background: var(--bg-side);
+            border-bottom: 1px solid var(--border);
+            z-index: 200;
+            padding: 8px 14px 14px;
+            flex-direction: column;
+            gap: 3px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.35);
+        }
+        #ws-nav-mobile.open { display: flex; }
+
         /* Responsive */
         @@media (max-width: 860px) {
             body { flex-direction: column; }
-            #ws-side { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; gap: 8px; overflow-x: auto; padding: 12px 14px; border-right: none; border-bottom: 1px solid var(--border); }
-            #ws-nav { flex-direction: row; flex: 1; gap: 4px; }
-            .ws-nav-btn { white-space: nowrap; width: auto; }
+            #ws-side {
+                width: 100%; height: auto; position: sticky; top: 0; z-index: 100;
+                flex-direction: row; align-items: center; justify-content: space-between;
+                padding: 10px 14px; border-right: none; border-bottom: 1px solid var(--border);
+            }
+            #ws-hamburger { display: flex; align-items: center; justify-content: center; }
+            #ws-nav { display: none; }
             #ws-stats { display: none; }
-            #ws-brand { margin-bottom: 0; margin-right: 6px; }
+            #ws-brand { margin-bottom: 0; }
             #ws-main { height: auto; }
-            #ws-scroll { height: auto; padding: 24px 16px 60px; }
+            #ws-scroll { height: auto; padding: 20px 14px 60px; }
             .ws-grid-3 { grid-template-columns: 1fr; }
             .ws-grid-2 { grid-template-columns: 1fr; }
+            .ws-page-title { font-size: 22px; }
         }
     </style>
 </head>
@@ -278,6 +313,12 @@
             Histórico
         </a>
     </nav>
+
+    <button id="ws-hamburger" aria-label="Menu" onclick="toggleMobileNav()">
+        <svg id="ws-hamburger-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
 
     <div id="ws-stats">
         <div>
@@ -320,6 +361,30 @@
     </div>
 </main>
 
+<!-- Mobile nav overlay -->
+<nav id="ws-nav-mobile">
+    <a href="@Url.Action("Index","Home")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+        Pesquisar
+    </a>
+    <a href="@Url.Action("Index","MusicSearch")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "MusicSearch" ? "active" : "")">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Indexar
+    </a>
+    <a href="@Url.Action("Index","MusicLibrary")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "MusicLibrary" ? "active" : "")">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Biblioteca
+    </a>
+    <a href="@Url.Action("Index","SearchRestrictions")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "SearchRestrictions" ? "active" : "")">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        Restrições
+    </a>
+    <a href="@Url.Action("Index","SearchHistory")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "SearchHistory" ? "active" : "")">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/></svg>
+        Histórico
+    </a>
+</nav>
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script>
     // Load sidebar stats
@@ -329,6 +394,25 @@
         document.getElementById('stat-bar').style.width = (d.total > 0 ? Math.round(d.approved / d.total * 100) : 0) + '%';
         document.getElementById('stat-pending-label').textContent = (d.total - d.approved) + ' aguardando revisão';
     }).catch(() => {});
+
+    function toggleMobileNav() {
+        var nav = document.getElementById('ws-nav-mobile');
+        var icon = document.getElementById('ws-hamburger-icon');
+        var open = nav.classList.toggle('open');
+        icon.innerHTML = open
+            ? '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+            : '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>';
+    }
+
+    // Close mobile nav when clicking outside
+    document.addEventListener('click', function(e) {
+        var nav = document.getElementById('ws-nav-mobile');
+        var side = document.getElementById('ws-side');
+        if (nav.classList.contains('open') && !side.contains(e.target) && !nav.contains(e.target)) {
+            nav.classList.remove('open');
+            document.getElementById('ws-hamburger-icon').innerHTML = '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>';
+        }
+    });
 </script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
