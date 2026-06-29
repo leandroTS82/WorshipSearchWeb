@@ -68,8 +68,16 @@ public class MusicIndexController : Controller
     {
         try
         {
-            var (summary, explanation, practical) = await _enrichment.EnrichSummaryAsync(doc);
-            return Json(new { summary, explanation, practical_application = practical });
+            var (summary, explanation, practical, worshipStyle, energyLevel, occasion) = await _enrichment.EnrichSummaryAsync(doc);
+            return Json(new
+            {
+                summary,
+                explanation,
+                practical_application = practical,
+                worship_style = worshipStyle,
+                energy_level = energyLevel,
+                occasion
+            });
         }
         catch (Exception ex)
         {

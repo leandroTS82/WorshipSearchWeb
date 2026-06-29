@@ -63,9 +63,12 @@ Escreva em português (pt-BR), de forma concisa e pesquisável:
 - summary: resumo espiritual da música (máximo 2 frases curtas)
 - explanation: explicação teológica cristã (máximo 3 frases)
 - practical_application: como usar no culto (máximo 2 frases)
+- worship_style: estilo de adoração (ex: ""contemplativo"", ""celebração"", ""intercessão"") — 1-3 palavras
+- energy_level: nível de energia (ex: ""suave"", ""moderado"", ""vibrante"") — 1-2 palavras
+- occasion: ocasião ideal (ex: ""abertura do culto"", ""Santa Ceia"", ""encerramento"") — 1-4 palavras
 
 Contexto sempre cristão/evangélico. Textos curtos e diretos.
 
-Retorne APENAS um JSON com exatamente estes três campos: summary, explanation, practical_application
+Retorne APENAS um JSON com exatamente estes seis campos: summary, explanation, practical_application, worship_style, energy_level, occasion
 Sem texto extra.";
 }

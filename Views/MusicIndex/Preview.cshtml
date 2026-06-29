@@ -395,9 +395,17 @@ async function runEnrichment() {
         docData.summary = summaryResult.summary || '';
         docData.explanation = summaryResult.explanation || '';
         docData.practical_application = summaryResult.practical_application || '';
+        // Fill context fields from summary step if still empty after paragraph enrichment
+        if (!docData.search.worship_style && summaryResult.worship_style)
+            docData.search.worship_style = summaryResult.worship_style;
+        if (!docData.search.energy_level && summaryResult.energy_level)
+            docData.search.energy_level = summaryResult.energy_level;
+        if (!docData.search.occasion && summaryResult.occasion)
+            docData.search.occasion = summaryResult.occasion;
         log('✓ Enriquecimento concluído!');
     } catch (err) {
-        log('✗ Erro ao gerar resumo – os dados de tags foram salvos.');
+        log('✗ Erro ao gerar resumo — verifique a conexão e clique em Re-enriquecer para tentar novamente.');
+        $('#progressBar').css({ width: '100%', background: '#c0392b' });
     }
 
     // Show results
