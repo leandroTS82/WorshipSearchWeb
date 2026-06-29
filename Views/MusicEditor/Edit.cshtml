@@ -295,18 +295,35 @@ function copyLyrics() {
 }
 
 // Paragraph-by-paragraph enrichment (same flow as Preview)
+function getUniqueParagraphs(lyrics) {
+    var all = (lyrics || '').split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    var seen = {};
+    var unique = [];
+    var skipped = 0;
+    all.forEach(function(p) {
+        var key = p.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (seen[key]) { skipped++; return; }
+        seen[key] = true;
+        unique.push(p);
+    });
+    unique._skipped = skipped;
+    return unique;
+}
+
 $('#enrichBtn').click(async function(){
     var btn = $(this).prop('disabled', true);
     var doc = collectDoc();
-    var paragraphs = (doc.lyrics || '').split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    var paragraphs = getUniqueParagraphs(doc.lyrics);
     if (!paragraphs.length) { showStatus('Nenhuma estrofe encontrada na letra.', 'danger'); btn.prop('disabled', false); return; }
+
+    var skippedMsg = paragraphs._skipped > 0 ? ' (' + paragraphs._skipped + ' repetida(s) ignorada(s))' : '';
 
     var accumulated = { themes:[], moods:[], contexts:[], keywords:[], biblical_topics:[], biblical_references:[], biblical_books:[], biblical_characters:[], synonyms:[], worship_style:'', energy_level:'', occasion:'', worship_moments:[] };
 
-    showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Analisando estrofe 1/' + paragraphs.length + '…', 'info');
+    showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Analisando ' + paragraphs.length + ' estrofe(s) única(s)' + skippedMsg + '…', 'info');
 
     for (var i = 0; i < paragraphs.length; i++) {
-        showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Estrofe ' + (i+1) + '/' + paragraphs.length + '…', 'info');
+        showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Estrofe ' + (i+1) + '/' + paragraphs.length + skippedMsg + '…', 'info');
         try {
             var newTags = await $.ajax({ url: '@Url.Action("EnrichParagraph","MusicIndex")', method: 'POST', contentType: 'application/json',
                 data: JSON.stringify({ paragraph: paragraphs[i], title: doc.title, artist: doc.artist, existing_tags: accumulated }) });

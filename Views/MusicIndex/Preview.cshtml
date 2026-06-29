@@ -307,9 +307,24 @@ $('#r-energy_level').on('input', function(){ docData.search.energy_level = $(thi
 $('#r-occasion').on('input', function(){ docData.search.occasion = $(this).val(); });
 
 // ---- Paragraph enrichment ----
+function normalizeParagraph(p) {
+    return p.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 function getParagraphs() {
     var lyrics = docData.lyrics || '';
-    return lyrics.split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    var all = lyrics.split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    var seen = {};
+    var unique = [];
+    var skipped = 0;
+    all.forEach(function(p) {
+        var key = normalizeParagraph(p);
+        if (seen[key]) { skipped++; return; }
+        seen[key] = true;
+        unique.push(p);
+    });
+    if (skipped > 0) unique._skipped = skipped;
+    return unique;
 }
 
 function log(msg) {
@@ -338,7 +353,11 @@ async function runEnrichment() {
     $('#progressLog').html('');
     setProgress(0, paragraphs.length);
 
-    // Process each paragraph sequentially
+    if (paragraphs._skipped > 0) {
+        log('ℹ️ ' + paragraphs._skipped + ' estrofe(s) repetida(s) ignorada(s) — enviando ' + paragraphs.length + ' única(s).');
+    }
+
+    // Process each unique paragraph sequentially
     for (var i = 0; i < paragraphs.length; i++) {
         setProgress(i + 1, paragraphs.length);
         log('Estrofe ' + (i + 1) + '/' + paragraphs.length + ': "' + paragraphs[i].substring(0, 50).replace(/\n/g,' ') + '…"');
