@@ -1,12 +1,22 @@
 @{
-    ViewData["Title"] = "Indexar Música";
+    ViewData["Title"] = "Adicionar Música";
 }
 
 <div style="max-width:860px;margin:0 auto" class="ws-fade">
 
-    <div style="margin-bottom:24px">
-        <div class="ws-page-title">Indexar música</div>
-        <div class="ws-page-sub">Busque no letras.mus.br, selecione e gere o JSON enriquecido com IA.</div>
+    <div style="margin-bottom:20px">
+        <div class="ws-page-title">Adicionar música ao catálogo</div>
+        <div class="ws-page-sub">Busque uma música no letras.mus.br para incluí-la no catálogo de busca.</div>
+    </div>
+
+    <div class="ws-help-tip" data-tip-id="add-music-intro" data-tip-feature="adicionar-musica" style="margin-bottom:20px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>
+            <strong>Como funciona:</strong> pesquise pelo nome da música ou artista, selecione o resultado e clique em <strong>Analisar e adicionar</strong>.
+            A IA vai ler a letra completa e extrair automaticamente temas, referências bíblicas, emoções e outras informações — esse processo se chama <strong>enriquecimento</strong>.
+            Depois de enriquecida, a música aparece nos resultados de busca da equipe.
+        </span>
+        <button type="button" class="ws-tip-close" data-tip-close="add-music-intro" title="Não mostrar novamente">×</button>
     </div>
 
     <div style="position:relative;margin-bottom:20px">
@@ -79,7 +89,7 @@
             html += '<div style="color:var(--text-muted);font-size:13px;margin-top:2px">' + escHtml(m.Artist || '');
             if (m.Genre) html += ' · <span style="color:var(--text-dim)">' + escHtml(m.Genre) + '</span>';
             html += '</div></div>';
-            html += '<a href="' + previewUrl + '" class="ws-btn ws-btn-primary ws-btn-sm" style="flex-shrink:0">Indexar</a>';
+            html += '<a href="' + previewUrl + '" class="ws-btn ws-btn-primary ws-btn-sm" style="flex-shrink:0">Analisar e adicionar</a>';
             html += '</div>';
         });
 

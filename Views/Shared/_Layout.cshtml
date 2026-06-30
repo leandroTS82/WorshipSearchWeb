@@ -227,6 +227,16 @@
         .ws-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
         @@keyframes spin { to { transform: rotate(360deg); } }
 
+        /* Dismissable tips */
+        .ws-tip-close {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-dim); font-size: 20px; line-height: 1;
+            padding: 0; margin-left: auto; flex-shrink: 0;
+            display: flex; align-items: center;
+            transition: color .12s;
+        }
+        .ws-tip-close:hover { color: var(--text-muted); }
+
         /* Hamburger button */
         #ws-hamburger {
             display: none;
@@ -298,7 +308,7 @@
         </a>
         <a href="@Url.Action("Index","MusicSearch")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "MusicSearch" ? "active" : "")">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Indexar
+            Adicionar
         </a>
         <a href="@Url.Action("Index","MusicLibrary")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "MusicLibrary" ? "active" : "")">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -323,7 +333,7 @@
     <div id="ws-stats">
         <div>
             <div class="ws-stat-row">
-                <span class="ws-stat-label">Louvores indexados</span>
+                <span class="ws-stat-label">Louvores no catálogo</span>
                 <span class="ws-stat-val" id="stat-total">–</span>
             </div>
         </div>
@@ -369,7 +379,7 @@
     </a>
     <a href="@Url.Action("Index","MusicSearch")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "MusicSearch" ? "active" : "")">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Indexar
+        Adicionar
     </a>
     <a href="@Url.Action("Index","MusicLibrary")" class="ws-nav-btn @(ViewContext.RouteData.Values["controller"]?.ToString() == "MusicLibrary" ? "active" : "")">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -385,9 +395,19 @@
     </a>
 </nav>
 
+<!-- YouTube embed modal -->
+<div id="ws-yt-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.82);align-items:center;justify-content:center;padding:20px">
+    <div style="position:relative;width:min(92vw,820px)">
+        <button onclick="wsCloseYt()" style="position:absolute;top:-38px;right:0;background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:26px;line-height:1;padding:4px">×</button>
+        <div style="position:relative;padding-bottom:56.25%;background:#000;border-radius:12px;overflow:hidden">
+            <iframe id="ws-yt-iframe" style="position:absolute;inset:0;width:100%;height:100%;border:none" allow="autoplay;encrypted-media" allowfullscreen></iframe>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script>
-    // Load sidebar stats
+    // Sidebar stats
     fetch('/MusicLibrary/Stats').then(r => r.json()).then(d => {
         document.getElementById('stat-total').textContent = d.total;
         document.getElementById('stat-approved-label').textContent = d.approved + ' de ' + d.total;
@@ -404,7 +424,6 @@
             : '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>';
     }
 
-    // Close mobile nav when clicking outside
     document.addEventListener('click', function(e) {
         var nav = document.getElementById('ws-nav-mobile');
         var side = document.getElementById('ws-side');
@@ -412,7 +431,86 @@
             nav.classList.remove('open');
             document.getElementById('ws-hamburger-icon').innerHTML = '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>';
         }
+
+        // Dismissable tips
+        var closeBtn = e.target.closest('[data-tip-close]');
+        if (closeBtn) {
+            var tipId = closeBtn.dataset.tipClose;
+            var tipEl = document.querySelector('[data-tip-id="' + tipId + '"]');
+            if (tipEl) tipEl.style.display = 'none';
+            WsTips.dismiss(tipId, closeBtn.dataset.tipFeature || tipId);
+        }
+
+        // YouTube buttons
+        var ytBtn = e.target.closest('[data-yt-url]');
+        if (ytBtn) wsOpenYt(ytBtn.dataset.ytUrl);
+
+        // Share buttons
+        var shareBtn = e.target.closest('[data-share-url]');
+        if (shareBtn) wsShare(shareBtn.dataset.shareUrl, shareBtn);
     });
+
+    // WsTips: dismissable tip persistence
+    var WsTips = {
+        _key: 'ws_tips_v1',
+        _get: function() {
+            try { return JSON.parse(localStorage.getItem(this._key) || '{}'); } catch(e) { return {}; }
+        },
+        isDismissed: function(tipId) {
+            return !!this._get()[tipId];
+        },
+        dismiss: function(tipId, feature) {
+            var data = this._get();
+            data[tipId] = {
+                at: new Date().toISOString(),
+                feature: feature || tipId,
+                device: { userAgent: navigator.userAgent, screenWidth: screen.width, platform: navigator.platform }
+            };
+            try { localStorage.setItem(this._key, JSON.stringify(data)); } catch(e) {}
+        },
+        init: function() {
+            document.querySelectorAll('[data-tip-id]').forEach(function(el) {
+                if (WsTips.isDismissed(el.dataset.tipId)) el.style.display = 'none';
+            });
+        }
+    };
+    document.addEventListener('DOMContentLoaded', function() { WsTips.init(); });
+
+    // YouTube modal
+    function wsOpenYt(url) {
+        var match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([A-Za-z0-9_-]{11})/);
+        if (!match) { window.open(url, '_blank'); return; }
+        document.getElementById('ws-yt-iframe').src = 'https://www.youtube-nocookie.com/embed/' + match[1] + '?autoplay=1';
+        document.getElementById('ws-yt-modal').style.display = 'flex';
+    }
+    function wsCloseYt() {
+        document.getElementById('ws-yt-iframe').src = '';
+        document.getElementById('ws-yt-modal').style.display = 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') wsCloseYt();
+    });
+
+    // Share / copy URL
+    function wsShare(url, btn) {
+        if (!url) return;
+        var origHtml = btn.innerHTML;
+        var check = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        function done() { btn.innerHTML = check; setTimeout(function() { btn.innerHTML = origHtml; }, 1600); }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done).catch(function() {
+                var ta = document.createElement('textarea');
+                ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                document.body.removeChild(ta); done();
+            });
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+            document.body.removeChild(ta); done();
+        }
+    }
 </script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>

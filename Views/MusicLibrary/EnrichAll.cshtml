@@ -1,0 +1,213 @@
+@{
+    ViewData["Title"] = "Enriquecer em Lote";
+}
+
+<div style="max-width:860px;margin:0 auto" class="ws-fade">
+
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap">
+        <a href="@Url.Action("Index","MusicLibrary")" class="ws-btn ws-btn-ghost ws-btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/></svg>
+            Biblioteca
+        </a>
+        <div style="flex:1">
+            <div class="ws-page-title">Enriquecer em lote</div>
+            <div class="ws-page-sub">A IA analisa cada música sem metadados e preenche temas, emoções, referências bíblicas e resumo automaticamente.</div>
+        </div>
+    </div>
+
+    <div class="ws-help-tip" data-tip-id="enrich-all-info" data-tip-feature="enriquecimento-lote" style="margin-bottom:20px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>
+            Serão processadas apenas as músicas que ainda <strong>não possuem resumo ou possuem menos de 2 temas</strong>.
+            O processo é sequencial — uma música por vez — e pode demorar alguns minutos dependendo da quantidade.
+            Você pode fechar esta página a qualquer momento; as músicas já processadas serão mantidas.
+        </span>
+        <button type="button" class="ws-tip-close" data-tip-close="enrich-all-info" title="Não mostrar novamente">×</button>
+    </div>
+
+    <div id="ea-idle">
+        <div id="ea-list-area" style="margin-bottom:20px">
+            <div style="padding:40px 0;text-align:center"><div class="ws-spinner"></div></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+            <button id="ea-start-btn" class="ws-btn ws-btn-primary" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Iniciar enriquecimento
+            </button>
+            <span id="ea-count-label" style="color:var(--text-muted);font-size:13.5px"></span>
+        </div>
+    </div>
+
+    <div id="ea-running" style="display:none">
+        <div class="ws-card" style="padding:20px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+                <div class="ws-spinner"></div>
+                <div>
+                    <div style="font-weight:500" id="ea-current-title">Aguardando…</div>
+                    <div style="color:var(--text-muted);font-size:13px" id="ea-current-step"></div>
+                </div>
+                <div style="margin-left:auto;font-size:13px;color:var(--text-muted)" id="ea-progress-label"></div>
+            </div>
+            <div style="height:6px;border-radius:3px;background:var(--border-card);overflow:hidden">
+                <div id="ea-progress-bar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .3s"></div>
+            </div>
+        </div>
+        <div id="ea-log" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto"></div>
+    </div>
+
+    <div id="ea-done" style="display:none;padding:40px 0;text-align:center">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linecap="round" style="margin-bottom:14px"><polyline points="20 6 9 17 4 12"/></svg>
+        <div style="font-size:18px;font-family:'Spectral',serif;margin-bottom:6px" id="ea-done-title">Concluído!</div>
+        <div style="color:var(--text-muted);font-size:14px" id="ea-done-sub"></div>
+        <div style="margin-top:22px;display:flex;justify-content:center;gap:10px">
+            <a href="@Url.Action("Index","MusicLibrary")" class="ws-btn ws-btn-primary ws-btn-sm">Ver biblioteca</a>
+            <button onclick="location.reload()" class="ws-btn ws-btn-ghost ws-btn-sm">Novo lote</button>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+var eaSongs = [];
+var eaDone = 0;
+var eaErrors = 0;
+
+// Load unenriched list
+$.getJSON('@Url.Action("GetUnenriched","MusicLibrary")').done(function(data) {
+    eaSongs = data || [];
+    if (eaSongs.length === 0) {
+        $('#ea-list-area').html('<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:14px">Todas as músicas já estão enriquecidas.</div>');
+        $('#ea-count-label').text('Nenhuma música para processar');
+    } else {
+        var html = '<div class="ws-card" style="overflow:hidden"><table class="ws-table"><thead><tr><th>Título</th><th>Artista</th></tr></thead><tbody>';
+        eaSongs.forEach(function(s) {
+            html += '<tr id="ea-row-' + escId(s.fileName) + '">';
+            html += '<td style="font-weight:500">' + escHtml(s.title || '—') + '</td>';
+            html += '<td style="color:var(--text-muted);font-size:13px">' + escHtml(s.artist || '—') + '</td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        $('#ea-list-area').html(html);
+        $('#ea-count-label').text(eaSongs.length + ' música(s) para enriquecer');
+        $('#ea-start-btn').prop('disabled', false);
+    }
+}).fail(function() {
+    $('#ea-list-area').html('<div style="padding:20px;text-align:center;color:#ff8a80;font-size:14px">Erro ao carregar lista. Recarregue a página.</div>');
+});
+
+$('#ea-start-btn').click(function() {
+    $('#ea-idle').hide();
+    $('#ea-running').show();
+    processAll();
+});
+
+async function processAll() {
+    for (var i = 0; i < eaSongs.length; i++) {
+        var song = eaSongs[i];
+        setProgress(i, eaSongs.length, song.title);
+        var ok = await processSong(song);
+        if (ok) eaDone++; else eaErrors++;
+        appendLog(song, ok);
+    }
+    setProgress(eaSongs.length, eaSongs.length, '');
+    $('#ea-running').hide();
+    $('#ea-done').show();
+    $('#ea-done-title').text(eaDone + ' música(s) enriquecida(s)');
+    if (eaErrors > 0) $('#ea-done-sub').text(eaErrors + ' erro(s) — essas músicas mantêm os dados anteriores.');
+    else $('#ea-done-sub').text('Tudo pronto! Revise as músicas na biblioteca antes de aprovar.');
+}
+
+async function processSong(song) {
+    try {
+        setStep('Carregando dados…');
+        var doc = await $.getJSON('@Url.Action("Load","MusicEditor")' + '?fileName=' + encodeURIComponent(song.fileName));
+
+        var paragraphs = getUniqueParagraphs(doc.lyrics);
+        if (!paragraphs.length) return false;
+
+        var acc = { themes:[], moods:[], contexts:[], keywords:[], biblical_topics:[], biblical_references:[], biblical_books:[], biblical_characters:[], synonyms:[], worship_style:'', energy_level:'', occasion:'', worship_moments:[] };
+
+        for (var j = 0; j < paragraphs.length; j++) {
+            setStep('Estrofe ' + (j+1) + '/' + paragraphs.length + '…');
+            try {
+                var tags = await $.ajax({
+                    url: '@Url.Action("EnrichParagraph","MusicIndex")',
+                    method: 'POST', contentType: 'application/json',
+                    data: JSON.stringify({ paragraph: paragraphs[j], title: doc.title, artist: doc.artist, existing_tags: acc })
+                });
+                ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms'].forEach(function(f){
+                    var added = (tags[f]||[]).filter(function(v){ return v && !acc[f].some(function(e){ return e.toLowerCase()===v.toLowerCase(); }); });
+                    acc[f] = acc[f].concat(added);
+                });
+                if (!acc.worship_style && tags.worship_style) acc.worship_style = tags.worship_style;
+                if (!acc.energy_level  && tags.energy_level)  acc.energy_level  = tags.energy_level;
+                if (!acc.occasion      && tags.occasion)       acc.occasion      = tags.occasion;
+            } catch(e) { /* continue */ }
+        }
+
+        setStep('Gerando resumo…');
+        doc.search = acc;
+        try {
+            var summary = await $.ajax({
+                url: '@Url.Action("EnrichSummary","MusicIndex")',
+                method: 'POST', contentType: 'application/json', data: JSON.stringify(doc)
+            });
+            doc.summary = summary.summary || doc.summary;
+            doc.explanation = summary.explanation || doc.explanation;
+            doc.practical_application = summary.practical_application || doc.practical_application;
+        } catch(e) { /* summary optional */ }
+
+        setStep('Salvando…');
+        await $.ajax({
+            url: '@Url.Action("Save","MusicEditor")' + '?fileName=' + encodeURIComponent(song.fileName),
+            method: 'POST', contentType: 'application/json', data: JSON.stringify(doc)
+        });
+
+        return true;
+    } catch(e) {
+        return false;
+    }
+}
+
+function setProgress(done, total, title) {
+    $('#ea-current-title').text(done < total ? (title || '…') : 'Finalizando…');
+    $('#ea-progress-label').text(done + ' / ' + total);
+    $('#ea-progress-bar').css('width', total > 0 ? (done / total * 100) + '%' : '0%');
+}
+
+function setStep(msg) {
+    $('#ea-current-step').text(msg);
+}
+
+function appendLog(song, ok) {
+    var color = ok ? '#69d18a' : '#ff8a80';
+    var icon = ok
+        ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    var entry = $('<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 10px;border-radius:8px;background:var(--bg-card)">')
+        .css('color', color)
+        .html(icon + ' ' + escHtml(song.title || song.fileName));
+    $('#ea-log').append(entry);
+    entry[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function getUniqueParagraphs(lyrics) {
+    var all = (lyrics || '').split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    var seen = {}, unique = [];
+    all.forEach(function(p) {
+        var key = p.toLowerCase().replace(/\s+/g,' ').trim();
+        if (!seen[key]) { seen[key] = true; unique.push(p); }
+    });
+    return unique;
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escId(s) {
+    return String(s).replace(/[^a-zA-Z0-9-_]/g, '_');
+}
+</script>
+}

@@ -99,4 +99,7 @@ public class MusicMetadata
 
     [JsonPropertyName("indexed_at")]
     public string IndexedAt { get; set; } = string.Empty;
+
+    [JsonPropertyName("youtube_url")]
+    public string YoutubeUrl { get; set; } = string.Empty;
 }

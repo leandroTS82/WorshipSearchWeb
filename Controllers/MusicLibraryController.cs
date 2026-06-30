@@ -43,6 +43,19 @@ public class MusicLibraryController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> GetUnenriched()
+    {
+        var all = await _repository.LoadAllAsync();
+        var unenriched = all
+            .Where(x => string.IsNullOrWhiteSpace(x.Doc.Summary) || (x.Doc.Search?.Themes?.Count ?? 0) < 2)
+            .Select(x => new { fileName = x.FileName, title = x.Doc.Title, artist = x.Doc.Artist })
+            .ToList();
+        return Json(unenriched);
+    }
+
+    public IActionResult EnrichAll() => View();
+
+    [HttpGet]
     public async Task<IActionResult> Stats()
     {
         var all = await _repository.LoadAllAsync();

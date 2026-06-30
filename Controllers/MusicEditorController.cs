@@ -14,6 +14,14 @@ public class MusicEditorController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> Load(string fileName)
+    {
+        var doc = await _repository.LoadAsync(fileName);
+        if (doc == null) return NotFound();
+        return Json(doc);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Edit(string fileName)
     {
         var doc = await _repository.LoadAsync(fileName);

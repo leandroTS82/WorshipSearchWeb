@@ -167,12 +167,13 @@
     </div>
 
     <!-- How it works tip -->
-    <div class="ws-help-tip">
+    <div class="ws-help-tip" data-tip-id="search-criteria" data-tip-feature="pesquisa-criterios">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span>
             Digite um tema ou versículo e pressione <kbd>Enter</kbd> ou <kbd>;</kbd> para adicionar como critério.
             Você pode combinar vários — ex: <strong>Deus vai libertar</strong> + <strong>Salmos 21</strong> — e o sistema trará primeiro os louvores que atendem a todos os critérios, depois os parciais.
         </span>
+        <button type="button" class="ws-tip-close" data-tip-close="search-criteria" title="Não mostrar novamente">×</button>
     </div>
 
     <form method="get" action="@Url.Action("Index","Home")" id="search-form">
@@ -260,7 +261,7 @@
                 </span>
                 <a href="@Url.Action("Index","MusicSearch")" class="ws-btn ws-btn-ghost ws-btn-sm">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Indexar música
+                    Adicionar música
                 </a>
             </div>
             @if (fullMatch.Count > 0)
@@ -319,11 +320,17 @@
                             </a>
                             <div style="padding:12px 18px;border-top:1px solid var(--border-card);display:flex;gap:8px">
                                 <a href="@editUrl" class="ws-btn ws-btn-ghost ws-btn-sm" style="flex:1">Editar</a>
+                                @if (!string.IsNullOrWhiteSpace(doc.Metadata?.YoutubeUrl))
+                                {
+                                    <button type="button" class="ws-btn ws-btn-ghost ws-btn-sm" data-yt-url="@doc.Metadata.YoutubeUrl" title="Ver no YouTube">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    </button>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(doc.Metadata?.CanonicalUrl))
                                 {
-                                    <a href="@doc.Metadata.CanonicalUrl" target="_blank" rel="noopener" class="ws-btn ws-btn-ghost ws-btn-sm">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                    </a>
+                                    <button type="button" class="ws-btn ws-btn-ghost ws-btn-sm" data-share-url="@doc.Metadata.CanonicalUrl" title="Copiar link da música">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                                    </button>
                                 }
                             </div>
                         </div>
@@ -403,11 +410,17 @@
                             </a>
                             <div style="padding:12px 18px;border-top:1px solid var(--border-card);display:flex;gap:8px">
                                 <a href="@editUrl" class="ws-btn ws-btn-ghost ws-btn-sm" style="flex:1">Editar</a>
+                                @if (!string.IsNullOrWhiteSpace(doc.Metadata?.YoutubeUrl))
+                                {
+                                    <button type="button" class="ws-btn ws-btn-ghost ws-btn-sm" data-yt-url="@doc.Metadata.YoutubeUrl" title="Ver no YouTube">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    </button>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(doc.Metadata?.CanonicalUrl))
                                 {
-                                    <a href="@doc.Metadata.CanonicalUrl" target="_blank" rel="noopener" class="ws-btn ws-btn-ghost ws-btn-sm">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                    </a>
+                                    <button type="button" class="ws-btn ws-btn-ghost ws-btn-sm" data-share-url="@doc.Metadata.CanonicalUrl" title="Copiar link da música">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                                    </button>
                                 }
                             </div>
                         </div>
@@ -430,7 +443,7 @@
                 </span>
                 <a href="@Url.Action("Index","MusicSearch")" class="ws-btn ws-btn-ghost ws-btn-sm">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Indexar música
+                    Adicionar música
                 </a>
             </div>
             <div class="ws-grid ws-grid-3">
@@ -511,7 +524,7 @@
         <div style="text-align:center;padding:64px 0;color:var(--text-muted)">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" style="margin-bottom:16px;opacity:.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
             <div style="font-size:15px;margin-bottom:8px">Nenhuma música para "@query"</div>
-            <div style="font-size:13.5px">Tente <a href="@Url.Action("Index","MusicSearch")" style="color:var(--accent)">indexar uma música</a> com esse tema.</div>
+            <div style="font-size:13.5px">Tente <a href="@Url.Action("Index","MusicSearch")" style="color:var(--accent)">adicionar uma música</a> com esse tema.</div>
         </div>
     }
     else
@@ -526,7 +539,7 @@
         <div style="text-align:center;padding:64px 0;color:var(--text-muted)">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" style="margin-bottom:16px;opacity:.5"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="20" cy="16" r="3"/></svg>
             <div style="font-size:15px;margin-bottom:8px">Biblioteca vazia</div>
-            <div style="font-size:13.5px"><a href="@Url.Action("Index","MusicSearch")" style="color:var(--accent)">Indexe músicas</a> para começar.</div>
+            <div style="font-size:13.5px"><a href="@Url.Action("Index","MusicSearch")" style="color:var(--accent)">Adicione músicas</a> para começar.</div>
         </div>
     }
 
