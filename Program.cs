@@ -32,6 +32,7 @@ builder.Services.AddSingleton<IMusicRepository, MusicRepository>();
 builder.Services.AddSingleton<ISearchRestrictionsService, SearchRestrictionsService>();
 builder.Services.AddSingleton<ISearchHistoryService, SearchHistoryService>();
 builder.Services.AddSingleton<IJsonSearchEngine, JsonSearchEngine>();
+builder.Services.AddSingleton<IAppLogger, FileAppLogger>();
 builder.Services.AddScoped<IQueryExpansionService, QueryExpansionService>();
 builder.Services.AddScoped<ISearchIndexClassifier, SearchIndexClassifierService>();
 builder.Services.AddScoped<ISearchDocumentService, SearchDocumentService>();
@@ -55,5 +56,6 @@ app.MapControllerRoute(
 
 var jsonFolder = Path.Combine(app.Environment.ContentRootPath, "json");
 Directory.CreateDirectory(jsonFolder);
+Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "logs"));
 
 app.Run();
