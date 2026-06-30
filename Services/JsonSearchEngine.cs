@@ -62,6 +62,10 @@ public class JsonSearchEngine : IJsonSearchEngine
                 .Distinct()
                 .ToArray();
 
+        // Full normalized query used for exact title match — bypasses stop-word filtering.
+        // "É ele" → "e ele" which equals Normalize("É Ele"), guaranteeing exact title lookup wins.
+        var normRawQuery = Normalize(query.Query ?? string.Empty);
+
         var results = new List<LibrarySearchResult>();
 
         foreach (var (fileName, doc) in all)
@@ -78,7 +82,7 @@ public class JsonSearchEngine : IJsonSearchEngine
             }
             else
             {
-                (score, matchedTerms) = ScoreDocument(doc, terms);
+                (score, matchedTerms) = ScoreDocument(doc, terms, normRawQuery);
             }
 
             if (matchedTerms > 0 || terms.Length == 0)
@@ -234,7 +238,7 @@ public class JsonSearchEngine : IJsonSearchEngine
         return false;
     }
 
-    private static (double score, int matchedTerms) ScoreDocument(MusicDocument doc, string[] terms)
+    private static (double score, int matchedTerms) ScoreDocument(MusicDocument doc, string[] terms, string normRawQuery = "")
     {
         double total = 0;
         int matchedTerms = 0;
@@ -275,23 +279,28 @@ public class JsonSearchEngine : IJsonSearchEngine
             total += termScore;
         }
 
-        // Title-priority: when all search terms match the title, float this song to the top.
-        // Exact match → +1000; fuzzy (typo tolerance ≤1 char) → +500.
-        total += TitlePriorityBonus(doc.Title, terms);
+        // Title-priority: float songs to the top when the query targets a specific title.
+        total += TitlePriorityBonus(doc.Title, terms, normRawQuery);
 
         return (total, matchedTerms);
     }
 
-    private static double TitlePriorityBonus(string title, string[] terms)
+    private static double TitlePriorityBonus(string title, string[] terms, string normRawQuery = "")
     {
-        if (terms.Length == 0) return 0;
         var normTitle = Normalize(title);
+
+        // Strongest: full normalized query equals normalized title — direct title lookup.
+        // "É ele" → "e ele" == Normalize("É Ele") → guaranteed first position.
+        if (!string.IsNullOrWhiteSpace(normRawQuery) && normTitle == normRawQuery)
+            return 2000;
+
+        if (terms.Length == 0) return 0;
         var titleWords = normTitle.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        bool allExact = terms.All(t => normTitle.Contains(t));
-        if (allExact) return 1000;
+        // Strong: all query terms appear in the title
+        if (terms.All(t => normTitle.Contains(t))) return 1000;
 
-        // Fuzzy: every term either contained or within edit-distance 1 in some title word
+        // Moderate: all terms match title words within edit-distance 1 (typo tolerance)
         bool allFuzzy = terms.All(t =>
             normTitle.Contains(t) ||
             (t.Length >= 5 && titleWords.Any(w =>
