@@ -346,7 +346,7 @@ $('#enrichBtn').click(async function(){
         try {
             var newTags = await $.ajax({ url: '@Url.Action("EnrichParagraph","MusicIndex")', method: 'POST', contentType: 'application/json',
                 data: JSON.stringify({ paragraph: paragraphs[i], title: doc.title, artist: doc.artist, existing_tags: accumulated }) });
-            ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms'].forEach(function(f){
+            ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms','worship_moments'].forEach(function(f){
                 var added = (newTags[f] || []).filter(function(v){ return v && !accumulated[f].some(function(e){ return e.toLowerCase()===v.toLowerCase(); }); });
                 accumulated[f] = accumulated[f].concat(added);
             });
@@ -363,6 +363,7 @@ $('#enrichBtn').click(async function(){
         $('#f-summary').val(summary.summary || '');
         $('#f-explanation').val(summary.explanation || '');
         $('#f-practical').val(summary.practical_application || '');
+        if (summary.worship_moments && summary.worship_moments.length) accumulated.worship_moments = summary.worship_moments;
     } catch(e) { /* summary optional */ }
 
     applyEnriched(accumulated);

@@ -9,7 +9,7 @@ namespace WorshipSearchWeb.Services;
 public interface IMusicEnrichmentService
 {
     Task<SearchMetadata> EnrichParagraphAsync(string paragraph, string title, string artist, SearchMetadata existing);
-    Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion)> EnrichSummaryAsync(MusicDocument doc);
+    Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion, List<string> WorshipMoments)> EnrichSummaryAsync(MusicDocument doc);
 }
 
 public class MusicEnrichmentService : IMusicEnrichmentService
@@ -32,14 +32,14 @@ public class MusicEnrichmentService : IMusicEnrichmentService
         return ParseTagsOnly(response);
     }
 
-    public async Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion)> EnrichSummaryAsync(MusicDocument doc)
+    public async Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion, List<string> WorshipMoments)> EnrichSummaryAsync(MusicDocument doc)
     {
         var prompt = _promptBuilder.BuildSummaryPrompt(doc);
         var response = await _groqService.CompleteAsync(prompt);
 
         var cleaned = StripMarkdown(response);
         var node = JsonNode.Parse(cleaned);
-        if (node == null) return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
+        if (node == null) return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new());
 
         return (
             node["summary"]?.GetValue<string>() ?? string.Empty,
@@ -47,7 +47,8 @@ public class MusicEnrichmentService : IMusicEnrichmentService
             node["practical_application"]?.GetValue<string>() ?? string.Empty,
             node["worship_style"]?.GetValue<string>() ?? string.Empty,
             node["energy_level"]?.GetValue<string>() ?? string.Empty,
-            node["occasion"]?.GetValue<string>() ?? string.Empty
+            node["occasion"]?.GetValue<string>() ?? string.Empty,
+            ParseArray(node["worship_moments"])
         );
     }
 
@@ -75,6 +76,7 @@ public class MusicEnrichmentService : IMusicEnrichmentService
             result.WorshipStyle = node["worship_style"]?.GetValue<string>() ?? string.Empty;
             result.EnergyLevel = node["energy_level"]?.GetValue<string>() ?? string.Empty;
             result.Occasion = node["occasion"]?.GetValue<string>() ?? string.Empty;
+            result.WorshipMoments = ParseArray(node["worship_moments"]);
         }
         catch { /* return empty on parse failure */ }
         return result;

@@ -19,6 +19,7 @@ Tags já identificadas (NÃO repita nenhuma):
 - estilo: ""{existing_worship_style}""
 - energia: ""{existing_energy_level}""
 - ocasião: ""{existing_occasion}""
+- momentos do culto: {existing_worship_moments}
 
 Analise esta estrofe e retorne APENAS tags NOVAS não listadas acima:
 ---
@@ -31,9 +32,10 @@ REGRAS:
 - Sempre dentro do contexto cristão/evangélico
 - Sem textos longos, apenas termos de busca objetivos
 - Não repita tags já listadas
+- worship_moments: use apenas valores desta lista exata: Celebração, Adoração, Santa Ceia, Apelo, Intercessão, Ofertório, Abertura, Encerramento
 
 Retorne um objeto JSON com estes campos exatos. Use [] ou """" para campos sem novidades:
-themes, moods, contexts, keywords, biblical_topics, biblical_references, biblical_books, biblical_characters, synonyms, worship_style, energy_level, occasion
+themes, moods, contexts, keywords, biblical_topics, biblical_references, biblical_books, biblical_characters, synonyms, worship_style, energy_level, occasion, worship_moments
 
 Retorne APENAS o JSON, sem texto extra.";
 
@@ -114,9 +116,10 @@ Escreva em português (pt-BR), de forma concisa e pesquisável:
 - worship_style: estilo de adoração (ex: ""contemplativo"", ""celebração"", ""intercessão"") — 1-3 palavras
 - energy_level: nível de energia (ex: ""suave"", ""moderado"", ""vibrante"") — 1-2 palavras
 - occasion: ocasião ideal (ex: ""abertura do culto"", ""Santa Ceia"", ""encerramento"") — 1-4 palavras
+- worship_moments: lista dos momentos do culto em que esta música se encaixa. Use APENAS valores desta lista: Celebração, Adoração, Santa Ceia, Apelo, Intercessão, Ofertório, Abertura, Encerramento
 
 Contexto sempre cristão/evangélico. Textos curtos e diretos.
 
-Retorne APENAS um JSON com exatamente estes seis campos: summary, explanation, practical_application, worship_style, energy_level, occasion
+Retorne APENAS um JSON com exatamente estes sete campos: summary, explanation, practical_application, worship_style, energy_level, occasion, worship_moments
 Sem texto extra.";
 }
