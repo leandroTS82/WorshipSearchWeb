@@ -275,7 +275,42 @@ public class JsonSearchEngine : IJsonSearchEngine
             total += termScore;
         }
 
+        // Title-priority: when all search terms match the title, float this song to the top.
+        // Exact match → +1000; fuzzy (typo tolerance ≤1 char) → +500.
+        total += TitlePriorityBonus(doc.Title, terms);
+
         return (total, matchedTerms);
+    }
+
+    private static double TitlePriorityBonus(string title, string[] terms)
+    {
+        if (terms.Length == 0) return 0;
+        var normTitle = Normalize(title);
+        var titleWords = normTitle.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        bool allExact = terms.All(t => normTitle.Contains(t));
+        if (allExact) return 1000;
+
+        // Fuzzy: every term either contained or within edit-distance 1 in some title word
+        bool allFuzzy = terms.All(t =>
+            normTitle.Contains(t) ||
+            (t.Length >= 5 && titleWords.Any(w =>
+                Math.Abs(w.Length - t.Length) <= 2 && EditDistance(w, t) <= 1)));
+        return allFuzzy ? 500 : 0;
+    }
+
+    private static int EditDistance(string a, string b)
+    {
+        int m = a.Length, n = b.Length;
+        var d = new int[m + 1, n + 1];
+        for (int i = 0; i <= m; i++) d[i, 0] = i;
+        for (int j = 0; j <= n; j++) d[0, j] = j;
+        for (int i = 1; i <= m; i++)
+            for (int j = 1; j <= n; j++)
+                d[i, j] = a[i - 1] == b[j - 1]
+                    ? d[i - 1, j - 1]
+                    : 1 + Math.Min(d[i - 1, j], Math.Min(d[i, j - 1], d[i - 1, j - 1]));
+        return d[m, n];
     }
 
     private static double ScoreField(string field, string term, double weight)
@@ -284,13 +319,20 @@ public class JsonSearchEngine : IJsonSearchEngine
         var lower = Normalize(field);
         if (lower == term) return weight * 2;
         if (lower.Contains(term)) return weight;
-        // Partial root match: check each word in the field shares 4+ char prefix with term
+        // Prefix match: 4+ char shared root
         if (term.Length >= 4)
         {
             var prefix = term[..4];
             foreach (var word in lower.Split(' '))
                 if (word.Length >= 4 && word.StartsWith(prefix))
                     return weight * 0.6;
+        }
+        // Fuzzy match: single character typo (edit distance ≤ 1) for terms ≥ 5 chars
+        if (term.Length >= 5)
+        {
+            foreach (var word in lower.Split(' '))
+                if (word.Length >= 4 && Math.Abs(word.Length - term.Length) <= 2 && EditDistance(word, term) <= 1)
+                    return weight * 0.4;
         }
         return 0;
     }
