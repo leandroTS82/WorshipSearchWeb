@@ -254,7 +254,7 @@ async function processSong(song) {
                     method: 'POST', contentType: 'application/json',
                     data: JSON.stringify({ paragraph: paragraphs[j], title: doc.title, artist: doc.artist, existing_tags: acc })
                 });
-                ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms'].forEach(function(f){
+                ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms','worship_moments'].forEach(function(f){
                     var added = (tags[f]||[]).filter(function(v){ return v && !acc[f].some(function(e){ return e.toLowerCase()===v.toLowerCase(); }); });
                     acc[f] = acc[f].concat(added);
                 });
@@ -274,6 +274,12 @@ async function processSong(song) {
             doc.summary = summary.summary || doc.summary;
             doc.explanation = summary.explanation || doc.explanation;
             doc.practical_application = summary.practical_application || doc.practical_application;
+            // Apply summary-level search fields (full-context is more reliable than per-paragraph)
+            if (summary.worship_style)   doc.search.worship_style  = summary.worship_style;
+            if (summary.energy_level)    doc.search.energy_level   = summary.energy_level;
+            if (summary.occasion)        doc.search.occasion        = summary.occasion;
+            if (summary.worship_moments && summary.worship_moments.length)
+                doc.search.worship_moments = summary.worship_moments;
         } catch(e) { /* summary optional */ }
 
         setStep('Salvando…');

@@ -17,39 +17,97 @@ public class MusicEnrichmentService : IMusicEnrichmentService
     private readonly IGroqService _groqService;
     private readonly IPromptBuilder _promptBuilder;
     private readonly ILogger<MusicEnrichmentService> _logger;
+    private readonly IAppLogger _appLogger;
 
-    public MusicEnrichmentService(IGroqService groqService, IPromptBuilder promptBuilder, ILogger<MusicEnrichmentService> logger)
+    public MusicEnrichmentService(IGroqService groqService, IPromptBuilder promptBuilder,
+        ILogger<MusicEnrichmentService> logger, IAppLogger appLogger)
     {
         _groqService = groqService;
         _promptBuilder = promptBuilder;
         _logger = logger;
+        _appLogger = appLogger;
     }
 
     public async Task<SearchMetadata> EnrichParagraphAsync(string paragraph, string title, string artist, SearchMetadata existing)
     {
-        var prompt = _promptBuilder.BuildParagraphPrompt(paragraph, title, artist, existing);
-        var response = await _groqService.CompleteAsync(prompt);
-        return ParseTagsOnly(response);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var prompt = _promptBuilder.BuildParagraphPrompt(paragraph, title, artist, existing);
+            var response = await _groqService.CompleteAsync(prompt);
+            var result = ParseTagsOnly(response);
+            await _appLogger.InfoAsync("enrich_paragraph", new
+            {
+                song        = $"{title} — {artist}",
+                elapsed_ms  = sw.ElapsedMilliseconds,
+                themes      = result.Themes.Count,
+                moods       = result.Moods.Count,
+                keywords    = result.Keywords.Count,
+                biblical    = result.BiblicalReferences.Count,
+                worship_mom = result.WorshipMoments.Count,
+                ok          = true
+            });
+            return result;
+        }
+        catch (Exception ex)
+        {
+            await _appLogger.ErrorAsync("enrich_paragraph_fail", ex, new { song = $"{title} — {artist}", elapsed_ms = sw.ElapsedMilliseconds });
+            throw;
+        }
     }
 
     public async Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion, List<string> WorshipMoments)> EnrichSummaryAsync(MusicDocument doc)
     {
-        var prompt = _promptBuilder.BuildSummaryPrompt(doc);
-        var response = await _groqService.CompleteAsync(prompt);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var prompt = _promptBuilder.BuildSummaryPrompt(doc);
+            var response = await _groqService.CompleteAsync(prompt);
 
-        var cleaned = StripMarkdown(response);
-        var node = JsonNode.Parse(cleaned);
-        if (node == null) return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new());
+            var cleaned = StripMarkdown(response);
+            // Extract JSON object — LLM may add prose before/after the braces
+            var start = cleaned.IndexOf('{');
+            var end   = cleaned.LastIndexOf('}');
+            if (start < 0 || end <= start)
+            {
+                await _appLogger.WarnAsync("enrich_summary_no_json", new { song = $"{doc.Title} — {doc.Artist}", elapsed_ms = sw.ElapsedMilliseconds, preview = cleaned[..Math.Min(120, cleaned.Length)] });
+                return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new());
+            }
 
-        return (
-            node["summary"]?.GetValue<string>() ?? string.Empty,
-            node["explanation"]?.GetValue<string>() ?? string.Empty,
-            node["practical_application"]?.GetValue<string>() ?? string.Empty,
-            node["worship_style"]?.GetValue<string>() ?? string.Empty,
-            node["energy_level"]?.GetValue<string>() ?? string.Empty,
-            node["occasion"]?.GetValue<string>() ?? string.Empty,
-            ParseArray(node["worship_moments"])
-        );
+            var node = JsonNode.Parse(cleaned[start..(end + 1)]);
+            if (node == null)
+            {
+                await _appLogger.WarnAsync("enrich_summary_parse_null", new { song = $"{doc.Title} — {doc.Artist}", elapsed_ms = sw.ElapsedMilliseconds });
+                return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new());
+            }
+
+            var result = (
+                node["summary"]?.GetValue<string>() ?? string.Empty,
+                node["explanation"]?.GetValue<string>() ?? string.Empty,
+                node["practical_application"]?.GetValue<string>() ?? string.Empty,
+                node["worship_style"]?.GetValue<string>() ?? string.Empty,
+                node["energy_level"]?.GetValue<string>() ?? string.Empty,
+                node["occasion"]?.GetValue<string>() ?? string.Empty,
+                ParseArray(node["worship_moments"])
+            );
+
+            await _appLogger.InfoAsync("enrich_summary", new
+            {
+                song           = $"{doc.Title} — {doc.Artist}",
+                elapsed_ms     = sw.ElapsedMilliseconds,
+                has_summary    = !string.IsNullOrEmpty(result.Item1),
+                worship_style  = result.Item4,
+                energy_level   = result.Item5,
+                worship_moments = result.Item7.Count,
+                ok             = true
+            });
+            return result;
+        }
+        catch (Exception ex)
+        {
+            await _appLogger.ErrorAsync("enrich_summary_fail", ex, new { song = $"{doc.Title} — {doc.Artist}", elapsed_ms = sw.ElapsedMilliseconds });
+            throw;
+        }
     }
 
     private static string StripMarkdown(string response) =>

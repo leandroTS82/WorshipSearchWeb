@@ -8,6 +8,7 @@ namespace WorshipSearchWeb.Controllers;
 public class HomeController : Controller
 {
     private readonly IJsonSearchEngine _searchEngine;
+    private readonly IMusicRepository _repository;
     private readonly ISearchHistoryService _history;
     private readonly IQueryExpansionService _expansion;
     private readonly ISearchIndexClassifier _classifier;
@@ -16,6 +17,7 @@ public class HomeController : Controller
 
     public HomeController(
         IJsonSearchEngine searchEngine,
+        IMusicRepository repository,
         ISearchHistoryService history,
         IQueryExpansionService expansion,
         ISearchIndexClassifier classifier,
@@ -23,6 +25,7 @@ public class HomeController : Controller
         ILogger<HomeController> logger)
     {
         _searchEngine     = searchEngine;
+        _repository       = repository;
         _history          = history;
         _expansion        = expansion;
         _classifier       = classifier;
@@ -80,6 +83,38 @@ public class HomeController : Controller
             {
                 try { await _history.LogSearchAsync(q, results.Count); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Failed to log search history"); }
+            }
+        }
+
+        // When no query, load top songs by enrichment richness for the empty-state panel
+        if (rawCriteria.Length == 0)
+        {
+            try
+            {
+                var all = await _repository.LoadAllAsync();
+                var top = all
+                    .Where(x => x.Doc.Approved)
+                    .Select(x => new
+                    {
+                        x.FileName,
+                        x.Doc,
+                        Score = (x.Doc.Search?.Themes.Count ?? 0)
+                              + (x.Doc.Search?.BiblicalReferences.Count ?? 0)
+                              + (x.Doc.Search?.Moods.Count ?? 0)
+                              + (x.Doc.Search?.Keywords.Count ?? 0)
+                              + (string.IsNullOrEmpty(x.Doc.Summary) ? 0 : 2)
+                    })
+                    .OrderByDescending(x => x.Score)
+                    .Take(6)
+                    .Select(x => new LibrarySearchResult { Document = x.Doc, FileName = x.FileName, Score = x.Score })
+                    .ToList();
+                ViewBag.TopSongs = top;
+                ViewBag.TotalApproved = all.Count(x => x.Doc.Approved);
+                ViewBag.TotalCount    = all.Count;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to load top songs");
             }
         }
 
