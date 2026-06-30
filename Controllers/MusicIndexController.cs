@@ -59,7 +59,9 @@ public class MusicIndexController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Paragraph enrichment failed");
-            return StatusCode(500, new { error = ex.Message });
+            return IsRateLimit(ex)
+                ? StatusCode(429, new { error = ex.Message })
+                : StatusCode(500, new { error = ex.Message });
         }
     }
 
@@ -83,9 +85,16 @@ public class MusicIndexController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Summary enrichment failed");
-            return StatusCode(500, new { error = ex.Message });
+            return IsRateLimit(ex)
+                ? StatusCode(429, new { error = ex.Message })
+                : StatusCode(500, new { error = ex.Message });
         }
     }
+
+    private static bool IsRateLimit(Exception ex) =>
+        ex.Message.Contains("TooManyRequests", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("rate_limit", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("429", StringComparison.Ordinal);
 
     [HttpPost]
     public async Task<IActionResult> Save([FromBody] MusicDocument doc)

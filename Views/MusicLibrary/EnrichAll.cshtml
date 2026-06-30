@@ -215,13 +215,44 @@ function startEnrichment() {
     processAll();
 }
 
+function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+async function ajaxWithRetry(opts, maxRetries) {
+    maxRetries = maxRetries || 2;
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await $.ajax(opts);
+        } catch(jqXHR) {
+            var status = (jqXHR && jqXHR.status) ? jqXHR.status : 0;
+            var errJson = {};
+            try { errJson = JSON.parse(jqXHR.responseText || '{}'); } catch(_) {}
+            var errMsg = errJson.error || '';
+            // rate limit: wait and retry with a fresh key (server always fetches new key per request)
+            if (status === 429 || (status === 500 && errMsg.toLowerCase().indexOf('toomanyrequests') >= 0)) {
+                var waitSec = 10;
+                var match = errMsg.match(/try again in (\d+)m/);
+                if (match) waitSec = Math.min(parseInt(match[1]) * 60, 120);
+                else { match = errMsg.match(/try again in ([\d.]+)s/); if (match) waitSec = Math.min(Math.ceil(parseFloat(match[1])), 120); }
+                if (attempt < maxRetries) {
+                    setStep('Rate limit — aguardando ' + waitSec + 's antes de nova tentativa (chave rotacionada)…');
+                    await sleep(waitSec * 1000);
+                    continue;
+                }
+            }
+            if (attempt >= maxRetries) throw jqXHR;
+            await sleep(2000);
+        }
+    }
+}
+
 async function processAll() {
     for (var i = 0; i < eaSongs.length; i++) {
         var song = eaSongs[i];
         setProgress(i, eaSongs.length, song.title);
-        var ok = await processSong(song);
-        if (ok) eaDone++; else eaErrors++;
-        appendLog(song, ok);
+        var result = await processSong(song);
+        if (result.ok) eaDone++; else eaErrors++;
+        appendLog(song, result.ok, result.error);
+        if (i < eaSongs.length - 1) await sleep(1500); // brief pause between songs
     }
     setProgress(eaSongs.length, eaSongs.length, '');
     document.getElementById('ea-step-running').style.display = 'none';
@@ -237,7 +268,7 @@ async function processSong(song) {
         var doc = await $.getJSON('@Url.Action("Load","MusicEditor")' + '?fileName=' + encodeURIComponent(song.fileName));
 
         var paragraphs = getUniqueParagraphs(doc.lyrics);
-        if (!paragraphs.length) return false;
+        if (!paragraphs.length) return { ok: false, error: 'sem letra' };
 
         var acc = {
             themes:[], moods:[], contexts:[], keywords:[],
@@ -247,9 +278,9 @@ async function processSong(song) {
         };
 
         for (var j = 0; j < paragraphs.length; j++) {
-            setStep('Estrofe ' + (j+1) + '/' + paragraphs.length + '…');
+            setStep('Estrofe ' + (j+1) + '/' + paragraphs.length + ' (chave rotacionada por request)…');
             try {
-                var tags = await $.ajax({
+                var tags = await ajaxWithRetry({
                     url: '@Url.Action("EnrichParagraph","MusicIndex")',
                     method: 'POST', contentType: 'application/json',
                     data: JSON.stringify({ paragraph: paragraphs[j], title: doc.title, artist: doc.artist, existing_tags: acc })
@@ -261,26 +292,25 @@ async function processSong(song) {
                 if (!acc.worship_style && tags.worship_style) acc.worship_style = tags.worship_style;
                 if (!acc.energy_level  && tags.energy_level)  acc.energy_level  = tags.energy_level;
                 if (!acc.occasion      && tags.occasion)       acc.occasion      = tags.occasion;
-            } catch(e) { /* continue */ }
+            } catch(e) { /* estrofe falhou — continua com as demais */ }
         }
 
-        setStep('Gerando resumo…');
+        setStep('Gerando resumo (estrofes únicas, sem repetições)…');
         doc.search = acc;
         try {
-            var summary = await $.ajax({
+            var summary = await ajaxWithRetry({
                 url: '@Url.Action("EnrichSummary","MusicIndex")',
                 method: 'POST', contentType: 'application/json', data: JSON.stringify(doc)
             });
             doc.summary = summary.summary || doc.summary;
             doc.explanation = summary.explanation || doc.explanation;
             doc.practical_application = summary.practical_application || doc.practical_application;
-            // Apply summary-level search fields (full-context is more reliable than per-paragraph)
             if (summary.worship_style)   doc.search.worship_style  = summary.worship_style;
             if (summary.energy_level)    doc.search.energy_level   = summary.energy_level;
             if (summary.occasion)        doc.search.occasion        = summary.occasion;
             if (summary.worship_moments && summary.worship_moments.length)
                 doc.search.worship_moments = summary.worship_moments;
-        } catch(e) { /* summary optional */ }
+        } catch(e) { /* resumo opcional */ }
 
         setStep('Salvando…');
         await $.ajax({
@@ -288,9 +318,11 @@ async function processSong(song) {
             method: 'POST', contentType: 'application/json', data: JSON.stringify(doc)
         });
 
-        return true;
+        return { ok: true };
     } catch(e) {
-        return false;
+        var msg = '';
+        try { msg = JSON.parse(e.responseText || '{}').error || e.statusText || 'erro desconhecido'; } catch(_) { msg = 'erro desconhecido'; }
+        return { ok: false, error: msg };
     }
 }
 
@@ -304,14 +336,15 @@ function setStep(msg) {
     document.getElementById('ea-current-step').textContent = msg;
 }
 
-function appendLog(song, ok) {
+function appendLog(song, ok, errorMsg) {
     var color = ok ? '#69d18a' : '#ff8a80';
     var icon = ok
         ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
         : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     var entry = document.createElement('div');
-    entry.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 10px;border-radius:8px;background:var(--bg-card);color:' + color;
-    entry.innerHTML = icon + ' ' + escHtml(song.title || song.fileName);
+    entry.style.cssText = 'display:flex;align-items:flex-start;gap:8px;font-size:13px;padding:6px 10px;border-radius:8px;background:var(--bg-card);color:' + color;
+    var detail = (!ok && errorMsg) ? '<div style="font-size:11px;opacity:.75;margin-top:2px">' + escHtml(errorMsg) + '</div>' : '';
+    entry.innerHTML = '<span style="margin-top:1px;flex-shrink:0">' + icon + '</span><div><div>' + escHtml(song.title || song.fileName) + '</div>' + detail + '</div>';
     document.getElementById('ea-log').appendChild(entry);
     entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }

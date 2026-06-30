@@ -43,10 +43,31 @@ public class PromptBuilder : IPromptBuilder
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         });
 
+        // Use only unique strophes — repeated choruses inflate token count without adding context.
+        var uniqueLyrics = GetUniqueParagraphs(doc.Lyrics ?? string.Empty);
+
         return PromptTemplates.SummaryTemplate
             .Replace("{title}", doc.Title)
             .Replace("{artist}", doc.Artist)
             .Replace("{tags_json}", tagsJson)
-            .Replace("{lyrics}", doc.Lyrics);
+            .Replace("{lyrics}", uniqueLyrics);
+    }
+
+    private static string GetUniqueParagraphs(string lyrics)
+    {
+        var paragraphs = System.Text.RegularExpressions.Regex
+            .Split(lyrics, @"\n[ \t]*\n|\r\n[ \t]*\r\n")
+            .Select(p => p.Trim())
+            .Where(p => p.Length > 10)
+            .ToList();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var unique = new List<string>();
+        foreach (var p in paragraphs)
+        {
+            var key = System.Text.RegularExpressions.Regex.Replace(p, @"\s+", " ").ToLowerInvariant();
+            if (seen.Add(key)) unique.Add(p);
+        }
+        return string.Join("\n\n", unique);
     }
 }
