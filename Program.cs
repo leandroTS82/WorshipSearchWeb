@@ -33,6 +33,8 @@ builder.Services.AddSingleton<ISearchRestrictionsService, SearchRestrictionsServ
 builder.Services.AddSingleton<ISearchHistoryService, SearchHistoryService>();
 builder.Services.AddSingleton<IJsonSearchEngine, JsonSearchEngine>();
 builder.Services.AddScoped<IQueryExpansionService, QueryExpansionService>();
+builder.Services.AddScoped<ISearchIndexClassifier, SearchIndexClassifierService>();
+builder.Services.AddScoped<ISearchDocumentService, SearchDocumentService>();
 
 var app = builder.Build();
 

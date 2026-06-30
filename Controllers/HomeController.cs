@@ -10,54 +10,83 @@ public class HomeController : Controller
     private readonly IJsonSearchEngine _searchEngine;
     private readonly ISearchHistoryService _history;
     private readonly IQueryExpansionService _expansion;
+    private readonly ISearchIndexClassifier _classifier;
+    private readonly ISearchDocumentService _searchDocService;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
         IJsonSearchEngine searchEngine,
         ISearchHistoryService history,
         IQueryExpansionService expansion,
+        ISearchIndexClassifier classifier,
+        ISearchDocumentService searchDocService,
         ILogger<HomeController> logger)
     {
-        _searchEngine = searchEngine;
-        _history = history;
-        _expansion = expansion;
-        _logger = logger;
+        _searchEngine     = searchEngine;
+        _history          = history;
+        _expansion        = expansion;
+        _classifier       = classifier;
+        _searchDocService = searchDocService;
+        _logger           = logger;
     }
 
     public async Task<IActionResult> Index(string? q, bool approvedOnly = false)
     {
-        var query = new SearchQuery { Query = q ?? string.Empty, ApprovedOnly = approvedOnly };
-        var results = await _searchEngine.SearchAsync(query);
+        var rawCriteria = string.IsNullOrWhiteSpace(q)
+            ? Array.Empty<string>()
+            : q.Split(';', StringSplitOptions.RemoveEmptyEntries)
+               .Select(c => c.Trim())
+               .Where(c => c.Length > 0)
+               .ToArray();
 
-        // Fallback: se não encontrou nada, expande via LLM e re-busca
-        if (results.Count == 0 && !string.IsNullOrWhiteSpace(q))
+        List<LibrarySearchResult> results;
+        List<SearchCriterion>? classifiedCriteria = null;
+
+        if (rawCriteria.Length > 1)
         {
-            var (expandedQ, expandedDescription) = await _expansion.ExpandAsync(q);
-            if (!string.IsNullOrWhiteSpace(expandedQ))
+            // Multi-criteria: classify all in parallel (one LLM key each), then typed matching
+            var classifyTasks = rawCriteria.Select(c => _classifier.ClassifyAsync(c));
+            classifiedCriteria = (await Task.WhenAll(classifyTasks)).ToList();
+
+            results = await _searchEngine.SearchByDocumentAsync(classifiedCriteria, approvedOnly);
+
+            // Persist search document without blocking the response
+            _ = SaveSearchDocumentAsync(q!, classifiedCriteria, results.Count);
+        }
+        else
+        {
+            // Single criterion or empty: fast path, no LLM upfront
+            var query = new SearchQuery { Query = q ?? string.Empty, ApprovedOnly = approvedOnly };
+            results = await _searchEngine.SearchAsync(query);
+
+            // Fallback: LLM expansion when nothing found
+            if (results.Count == 0 && !string.IsNullOrWhiteSpace(q))
             {
-                var expandedQuery = new SearchQuery { Query = expandedQ, ApprovedOnly = approvedOnly };
-                var expandedResults = await _searchEngine.SearchAsync(expandedQuery);
-                if (expandedResults.Count > 0)
+                var (expandedQ, expandedDescription) = await _expansion.ExpandAsync(q);
+                if (!string.IsNullOrWhiteSpace(expandedQ))
                 {
-                    results = expandedResults;
-                    ViewBag.LlmExpanded = true;
-                    ViewBag.LlmExpandedDescription = expandedDescription;
+                    var expandedQuery = new SearchQuery { Query = expandedQ, ApprovedOnly = approvedOnly };
+                    var expandedResults = await _searchEngine.SearchAsync(expandedQuery);
+                    if (expandedResults.Count > 0)
+                    {
+                        results = expandedResults;
+                        ViewBag.LlmExpanded = true;
+                        ViewBag.LlmExpandedDescription = expandedDescription;
+                    }
                 }
+            }
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                try { await _history.LogSearchAsync(q, results.Count); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to log search history"); }
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(q))
-        {
-            try { await _history.LogSearchAsync(q, results.Count); }
-            catch (Exception ex) { _logger.LogWarning(ex, "Failed to log search history"); }
-        }
-
-        var criteriaCount = string.IsNullOrWhiteSpace(q) ? 0
-            : q.Split(';', StringSplitOptions.RemoveEmptyEntries).Count(c => c.Trim().Length > 0);
-
-        ViewBag.Query = q;
-        ViewBag.ApprovedOnly = approvedOnly;
-        ViewBag.CriteriaCount = criteriaCount;
+        ViewBag.Query             = q;
+        ViewBag.ApprovedOnly      = approvedOnly;
+        ViewBag.CriteriaCount     = rawCriteria.Length;
+        ViewBag.ClassifiedCriteria = classifiedCriteria;
         return View(results);
     }
 
@@ -67,5 +96,25 @@ public class HomeController : Controller
         var feature = HttpContext.Features.Get<IExceptionHandlerPathFeature>();
         _logger.LogError(feature?.Error, "Unhandled exception at {Path}", feature?.Path);
         return View(new ErrorViewModel { RequestId = HttpContext.TraceIdentifier });
+    }
+
+    private async Task SaveSearchDocumentAsync(string rawQuery, List<SearchCriterion> criteria, int resultCount)
+    {
+        try
+        {
+            var doc = new SearchDocument
+            {
+                Id          = Guid.NewGuid().ToString("N")[..12],
+                SearchedAt  = DateTime.UtcNow.ToString("o"),
+                RawQuery    = rawQuery,
+                Criteria    = criteria,
+                ResultCount = resultCount
+            };
+            await _searchDocService.SaveAsync(doc);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save search document");
+        }
     }
 }

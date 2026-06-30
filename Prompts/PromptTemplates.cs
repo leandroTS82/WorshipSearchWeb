@@ -59,6 +59,46 @@ Retorne APENAS um JSON com este formato exato, sem texto extra:
   ]
 }}";
 
+    public const string CriterionClassificationTemplate = @"Você é um classificador de critérios de busca de músicas cristãs em português (pt-BR).
+
+Critério: ""{input}""
+
+Classifique este critério em um dos tipos abaixo e gere tags nos campos corretos para enriquecer a busca:
+
+Tipos possíveis:
+- biblical_reference: referência bíblica específica (ex: ""Romanos 8"", ""Salmo 91"", ""João 3:16"")
+- worship_moment: momento ou ocasião do culto (ex: ""Santa Ceia"", ""abertura"", ""ofertório"", ""encerramento"")
+- mood: emoção ou sentimento espiritual (ex: ""intimidade"", ""reverência"", ""lamento"", ""alegria"")
+- context: contexto litúrgico específico (ex: ""jovens"", ""Natal"", ""Páscoa"", ""batismo"")
+- theme: tema espiritual ou teológico (ex: ""graça"", ""esperança"", ""cura"", ""libertação"")
+- keyword: termo de busca geral
+
+REGRAS:
+- Apenas português (pt-BR)
+- Contexto cristão/evangélico
+- 4 a 8 tags por campo relevante, 1-3 palavras cada
+- Preencha apenas os campos que fazem sentido para o tipo identificado
+
+Retorne APENAS este JSON, sem texto extra:
+{{
+  ""type"": ""..."",
+  ""tags"": {{
+    ""themes"": [],
+    ""contexts"": [],
+    ""keywords"": [],
+    ""biblical_topics"": [],
+    ""biblical_references"": [],
+    ""biblical_books"": [],
+    ""biblical_characters"": [],
+    ""moods"": [],
+    ""synonyms"": [],
+    ""worship_moments"": [],
+    ""worship_style"": """",
+    ""energy_level"": """",
+    ""occasion"": """"
+  }}
+}}";
+
     public const string SummaryTemplate = @"Você é especialista em música cristã e teologia evangélica. Analise a música ""{title}"" de {artist}.
 
 Tags identificadas:

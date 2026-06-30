@@ -8,6 +8,7 @@ public interface IJsonSearchEngine
 {
     Task<List<LibrarySearchResult>> SearchAsync(SearchQuery query);
     Task<int> CountAsync(SearchQuery query);
+    Task<List<LibrarySearchResult>> SearchByDocumentAsync(List<SearchCriterion> criteria, bool approvedOnly);
 }
 
 public class JsonSearchEngine : IJsonSearchEngine
@@ -97,6 +98,127 @@ public class JsonSearchEngine : IJsonSearchEngine
             .ThenByDescending(r => r.Score)
             .ThenByDescending(r => r.Document.Approved)
             .ToList();
+    }
+
+    public async Task<List<LibrarySearchResult>> SearchByDocumentAsync(List<SearchCriterion> criteria, bool approvedOnly)
+    {
+        var all = await _repository.LoadAllAsync();
+        var restrictions = await _restrictions.LoadAsync();
+        var excluded = restrictions.Excluded.Select(e => Normalize(e)).ToHashSet();
+
+        var results = new List<LibrarySearchResult>();
+
+        foreach (var (fileName, doc) in all)
+        {
+            if (approvedOnly && !doc.Approved) continue;
+            if (excluded.Count > 0 && IsExcluded(doc, excluded)) continue;
+
+            double totalScore = 0;
+            var matchedCriteria = new List<string>();
+
+            foreach (var criterion in criteria)
+            {
+                var (score, matched) = ScoreByCriterion(doc, criterion);
+                if (matched) matchedCriteria.Add(criterion.Input);
+                totalScore += score;
+            }
+
+            if (matchedCriteria.Count > 0)
+            {
+                results.Add(new LibrarySearchResult
+                {
+                    Document         = doc,
+                    FileName         = fileName,
+                    Score            = totalScore,
+                    MatchedTerms     = matchedCriteria.Count,
+                    MatchedCriteria  = matchedCriteria
+                });
+            }
+        }
+
+        return results
+            .OrderByDescending(r => r.MatchedTerms)
+            .ThenByDescending(r => r.Score)
+            .ThenByDescending(r => r.Document.Approved)
+            .ToList();
+    }
+
+    private static (double score, bool matched) ScoreByCriterion(MusicDocument doc, SearchCriterion criterion)
+    {
+        var search = doc.Search ?? new SearchMetadata();
+        var tags   = criterion.Tags ?? new SearchMetadata();
+        double score = 0;
+
+        switch (criterion.Type)
+        {
+            case "biblical_reference":
+                score += ScoreListAgainstList(search.BiblicalReferences, tags.BiblicalReferences, 10);
+                score += ScoreListAgainstList(search.BiblicalBooks,      tags.BiblicalBooks,      8);
+                score += ScoreListAgainstList(search.BiblicalTopics,     tags.BiblicalTopics,     7);
+                score += ScoreListAgainstList(search.BiblicalCharacters, tags.BiblicalCharacters, 4);
+                score += ScoreField(doc.Summary, Normalize(criterion.Input), 2);
+                score += ScoreField(doc.Lyrics,  Normalize(criterion.Input), 1);
+                break;
+
+            case "worship_moment":
+                score += ScoreListAgainstList(search.WorshipMoments, tags.WorshipMoments, 10);
+                score += ScoreListAgainstList(search.Contexts,        tags.Contexts,       8);
+                if (!string.IsNullOrEmpty(tags.Occasion))
+                    score += ScoreField(search.Occasion, Normalize(tags.Occasion), 7);
+                score += ScoreListAgainstList(search.Themes, tags.Themes, 4);
+                score += ScoreField(doc.Summary, Normalize(criterion.Input), 2);
+                break;
+
+            case "mood":
+                score += ScoreListAgainstList(search.Moods, tags.Moods, 10);
+                if (!string.IsNullOrEmpty(tags.EnergyLevel))
+                    score += ScoreField(search.EnergyLevel, Normalize(tags.EnergyLevel), 8);
+                if (!string.IsNullOrEmpty(tags.WorshipStyle))
+                    score += ScoreField(search.WorshipStyle, Normalize(tags.WorshipStyle), 7);
+                score += ScoreListAgainstList(search.Themes,   tags.Themes,   5);
+                score += ScoreListAgainstList(search.Keywords, tags.Keywords, 3);
+                break;
+
+            case "context":
+                score += ScoreListAgainstList(search.Contexts,      tags.Contexts,      10);
+                score += ScoreListAgainstList(search.WorshipMoments,tags.WorshipMoments, 8);
+                score += ScoreListAgainstList(search.Themes,        tags.Themes,         4);
+                score += ScoreField(doc.Summary, Normalize(criterion.Input), 2);
+                break;
+
+            default: // "theme", "keyword", "general"
+                score += ScoreListAgainstList(search.Themes,       tags.Themes,          10);
+                score += ScoreListAgainstList(search.Keywords,     tags.Keywords,         8);
+                score += ScoreListAgainstList(search.Synonyms,     tags.Synonyms,         6);
+                score += ScoreListAgainstList(search.BiblicalTopics, tags.BiblicalTopics, 5);
+                score += ScoreListAgainstList(search.Contexts,     tags.Contexts,         4);
+                score += ScoreListAgainstList(search.Moods,        tags.Moods,            3);
+                var norm = Normalize(criterion.Input);
+                if (norm.Length > 1)
+                {
+                    score += ScoreField(doc.Title,   norm, 5);
+                    score += ScoreField(doc.Artist,  norm, 4);
+                    score += ScoreField(doc.Summary, norm, 3);
+                    score += ScoreField(doc.Lyrics,  norm, 1);
+                }
+                break;
+        }
+
+        return (score, score > 0);
+    }
+
+    private static double ScoreListAgainstList(List<string>? docList, List<string>? searchTags, double weight)
+    {
+        if (docList == null || searchTags == null || searchTags.Count == 0) return 0;
+        double score = 0;
+        foreach (var tag in searchTags)
+        {
+            var normTag = Normalize(tag);
+            if (normTag.Length < 2) continue;
+            foreach (var docItem in docList)
+                score += ScoreField(docItem, normTag, weight);
+        }
+        return score;
     }
 
     private static bool IsExcluded(MusicDocument doc, HashSet<string> excluded)

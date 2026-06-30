@@ -18,4 +18,5 @@ public class LibrarySearchResult
     public double Score { get; set; }
     public string FileName { get; set; } = string.Empty;
     public int MatchedTerms { get; set; }
+    public List<string> MatchedCriteria { get; set; } = new();
 }
