@@ -31,7 +31,8 @@ public class PromptBuilder : IPromptBuilder
             .Replace("{existing_synonyms}", Join(existing.Synonyms))
             .Replace("{existing_worship_style}", existing.WorshipStyle)
             .Replace("{existing_energy_level}", existing.EnergyLevel)
-            .Replace("{existing_occasion}", existing.Occasion);
+            .Replace("{existing_occasion}", existing.Occasion)
+            .Replace("{existing_worship_moments}", Join(existing.WorshipMoments));
     }
 
     public string BuildSummaryPrompt(MusicDocument doc)

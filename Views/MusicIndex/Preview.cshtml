@@ -402,6 +402,13 @@ async function runEnrichment() {
             docData.search.energy_level = summaryResult.energy_level;
         if (!docData.search.occasion && summaryResult.occasion)
             docData.search.occasion = summaryResult.occasion;
+        // worship_moments: summary has full context — override/confirm with its determination
+        if (summaryResult.worship_moments && summaryResult.worship_moments.length) {
+            docData.search.worship_moments = summaryResult.worship_moments;
+            $('.ws-moment-btn').each(function(){
+                $(this).toggleClass('selected', docData.search.worship_moments.indexOf($(this).data('moment')) !== -1);
+            });
+        }
         log('✓ Enriquecimento concluído!');
     } catch (err) {
         log('✗ Erro ao gerar resumo — verifique a conexão e clique em Re-enriquecer para tentar novamente.');
