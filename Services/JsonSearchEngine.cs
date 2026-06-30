@@ -7,6 +7,7 @@ namespace WorshipSearchWeb.Services;
 public interface IJsonSearchEngine
 {
     Task<List<LibrarySearchResult>> SearchAsync(SearchQuery query);
+    Task<int> CountAsync(SearchQuery query);
 }
 
 public class JsonSearchEngine : IJsonSearchEngine
@@ -30,13 +31,26 @@ public class JsonSearchEngine : IJsonSearchEngine
 
     public async Task<List<LibrarySearchResult>> SearchAsync(SearchQuery query)
     {
+        var all = await BuildFilteredAsync(query);
+        return all
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToList();
+    }
+
+    public async Task<int> CountAsync(SearchQuery query)
+    {
+        var all = await BuildFilteredAsync(query);
+        return all.Count;
+    }
+
+    private async Task<List<LibrarySearchResult>> BuildFilteredAsync(SearchQuery query)
+    {
         var all = await _repository.LoadAllAsync();
         var restrictions = await _restrictions.LoadAsync();
         var excluded = restrictions.Excluded
             .Select(e => Normalize(e))
             .ToHashSet();
-
-        var results = new List<LibrarySearchResult>();
 
         var terms = string.IsNullOrWhiteSpace(query.Query)
             ? Array.Empty<string>()
@@ -46,6 +60,8 @@ public class JsonSearchEngine : IJsonSearchEngine
                 .Where(t => t.Length > 1 && !StopWords.Contains(t))
                 .Distinct()
                 .ToArray();
+
+        var results = new List<LibrarySearchResult>();
 
         foreach (var (fileName, doc) in all)
         {
@@ -80,8 +96,6 @@ public class JsonSearchEngine : IJsonSearchEngine
             .OrderByDescending(r => r.MatchedTerms)
             .ThenByDescending(r => r.Score)
             .ThenByDescending(r => r.Document.Approved)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
             .ToList();
     }
 

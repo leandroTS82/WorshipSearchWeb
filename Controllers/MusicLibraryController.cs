@@ -15,12 +15,19 @@ public class MusicLibraryController : Controller
         _searchEngine = searchEngine;
     }
 
-    public async Task<IActionResult> Index(string? q, bool approvedOnly = false)
+    public async Task<IActionResult> Index(string? q, bool approvedOnly = false, int page = 1)
     {
-        var query = new SearchQuery { Query = q ?? string.Empty, ApprovedOnly = approvedOnly, PageSize = 50 };
+        const int pageSize = 50;
+        page = Math.Max(1, page);
+        var query = new SearchQuery { Query = q ?? string.Empty, ApprovedOnly = approvedOnly, Page = page, PageSize = pageSize };
         var results = await _searchEngine.SearchAsync(query);
-        ViewBag.Query = q;
+        var total   = await _searchEngine.CountAsync(new SearchQuery { Query = q ?? string.Empty, ApprovedOnly = approvedOnly });
+        ViewBag.Query        = q;
         ViewBag.ApprovedOnly = approvedOnly;
+        ViewBag.CurrentPage  = page;
+        ViewBag.PageSize     = pageSize;
+        ViewBag.TotalCount   = total;
+        ViewBag.TotalPages   = (int)Math.Ceiling((double)total / pageSize);
         return View(results);
     }
 
@@ -43,14 +50,16 @@ public class MusicLibraryController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetUnenriched()
+    public async Task<IActionResult> GetUnenriched(bool all = false)
     {
-        var all = await _repository.LoadAllAsync();
-        var unenriched = all
-            .Where(x => string.IsNullOrWhiteSpace(x.Doc.Summary) || (x.Doc.Search?.Themes?.Count ?? 0) < 2)
+        var docs = await _repository.LoadAllAsync();
+        var source = all
+            ? docs
+            : docs.Where(x => string.IsNullOrWhiteSpace(x.Doc.Summary) || (x.Doc.Search?.Themes?.Count ?? 0) < 2);
+        var result = source
             .Select(x => new { fileName = x.FileName, title = x.Doc.Title, artist = x.Doc.Artist })
             .ToList();
-        return Json(unenriched);
+        return Json(result);
     }
 
     public IActionResult EnrichAll() => View();

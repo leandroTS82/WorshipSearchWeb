@@ -1,16 +1,29 @@
 @model List<WorshipSearchWeb.Models.LibrarySearchResult>
 @{
     ViewData["Title"] = "Biblioteca";
-    var query = ViewBag.Query as string ?? "";
+    var query        = ViewBag.Query as string ?? "";
     var approvedOnly = (bool)(ViewBag.ApprovedOnly ?? false);
+    var currentPage  = (int)(ViewBag.CurrentPage  ?? 1);
+    var totalPages   = (int)(ViewBag.TotalPages   ?? 1);
+    var totalCount   = (int)(ViewBag.TotalCount   ?? Model.Count);
 }
+
+<style>
+/* Hide non-essential table columns on mobile — keep Title, Status, Actions */
+@@media (max-width: 860px) {
+    .lib-col-thumb  { display: none !important; }
+    .lib-col-artist { display: none !important; }
+    .lib-col-themes { display: none !important; }
+    .lib-col-moods  { display: none !important; }
+}
+</style>
 
 <div style="max-width:1100px;margin:0 auto" class="ws-fade">
 
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:14px">
         <div>
             <div class="ws-page-title">Biblioteca</div>
-            <div class="ws-page-sub">@Model.Count música(s) no catálogo</div>
+            <div class="ws-page-sub">@totalCount música(s) no catálogo</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a href="@Url.Action("EnrichAll","MusicLibrary")" class="ws-btn ws-btn-ghost ws-btn-sm">
@@ -51,75 +64,108 @@
     else
     {
         <div class="ws-card" style="overflow:hidden">
-            <table class="ws-table">
-                <thead>
-                    <tr>
-                        <th style="width:52px"></th>
-                        <th>Título</th>
-                        <th>Artista</th>
-                        <th>Temas</th>
-                        <th>Emoções</th>
-                        <th style="width:100px">Status</th>
-                        <th style="width:80px"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model)
-                    {
-                        var doc = item.Document;
+            <div style="overflow-x:auto">
+                <table class="ws-table" style="min-width:360px">
+                    <thead>
                         <tr>
-                            <td>
-                                @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
-                                {
-                                    <img src="@doc.Metadata.Image" width="36" height="36" style="border-radius:8px;object-fit:cover;border:1px solid var(--border)" alt="" />
-                                }
-                                else
-                                {
-                                    <div style="width:36px;height:36px;border-radius:8px;background:var(--accent-soft);border:1px solid var(--accent-line);display:flex;align-items:center;justify-content:center">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="20" cy="16" r="3"/></svg>
-                                    </div>
-                                }
-                            </td>
-                            <td style="font-weight:500">@doc.Title</td>
-                            <td style="color:var(--text-muted);font-size:13px">@doc.Artist</td>
-                            <td>
-                                <div style="display:flex;flex-wrap:wrap;gap:4px">
-                                    @foreach (var t in (doc.Search?.Themes ?? new()).Take(2))
-                                    {
-                                        <span class="ws-chip ws-chip-theme">@t</span>
-                                    }
-                                </div>
-                            </td>
-                            <td>
-                                <div style="display:flex;flex-wrap:wrap;gap:4px">
-                                    @foreach (var m in (doc.Search?.Moods ?? new()).Take(2))
-                                    {
-                                        <span class="ws-chip ws-chip-mood">@m</span>
-                                    }
-                                </div>
-                            </td>
-                            <td>
-                                <button class="ws-btn ws-btn-sm toggle-approved @(doc.Approved ? "" : "ws-btn-ghost")"
-                                        style="@(doc.Approved ? "background:rgba(60,180,90,0.15);border:1px solid rgba(60,180,90,0.25);color:#69d18a" : "")"
-                                        data-filename="@item.FileName">
-                                    @(doc.Approved ? "✓ Aprovada" : "Revisar")
-                                </button>
-                            </td>
-                            <td>
-                                <div style="display:flex;gap:6px;justify-content:flex-end">
-                                    <a href="@Url.Action("Edit","MusicEditor", new { fileName = item.FileName })" class="ws-btn ws-btn-ghost ws-btn-sm" title="Editar">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                    </a>
-                                    <button class="ws-btn ws-btn-danger ws-btn-sm delete-btn" data-filename="@item.FileName" title="Excluir">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                                    </button>
-                                </div>
-                            </td>
+                            <th class="lib-col-thumb" style="width:52px"></th>
+                            <th>Título</th>
+                            <th class="lib-col-artist">Artista</th>
+                            <th class="lib-col-themes">Temas</th>
+                            <th class="lib-col-moods">Emoções</th>
+                            <th style="width:110px">Status</th>
+                            <th style="width:80px"></th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            var doc = item.Document;
+                            <tr>
+                                <td class="lib-col-thumb">
+                                    @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
+                                    {
+                                        <img src="@doc.Metadata.Image" width="36" height="36" style="border-radius:8px;object-fit:cover;border:1px solid var(--border)" alt="" />
+                                    }
+                                    else
+                                    {
+                                        <div style="width:36px;height:36px;border-radius:8px;background:var(--accent-soft);border:1px solid var(--accent-line);display:flex;align-items:center;justify-content:center">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="20" cy="16" r="3"/></svg>
+                                        </div>
+                                    }
+                                </td>
+                                <td style="font-weight:500">@doc.Title</td>
+                                <td class="lib-col-artist" style="color:var(--text-muted);font-size:13px">@doc.Artist</td>
+                                <td class="lib-col-themes">
+                                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                                        @foreach (var t in (doc.Search?.Themes ?? new()).Take(2))
+                                        {
+                                            <span class="ws-chip ws-chip-theme">@t</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="lib-col-moods">
+                                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                                        @foreach (var m in (doc.Search?.Moods ?? new()).Take(2))
+                                        {
+                                            <span class="ws-chip ws-chip-mood">@m</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <button class="ws-btn ws-btn-sm toggle-approved @(doc.Approved ? "" : "ws-btn-ghost")"
+                                            style="@(doc.Approved ? "background:rgba(60,180,90,0.15);border:1px solid rgba(60,180,90,0.25);color:#69d18a" : "")"
+                                            data-filename="@item.FileName">
+                                        @(doc.Approved ? "✓ Aprovada" : "Revisar")
+                                    </button>
+                                </td>
+                                <td>
+                                    <div style="display:flex;gap:6px;justify-content:flex-end">
+                                        <a href="@Url.Action("Edit","MusicEditor", new { fileName = item.FileName })" class="ws-btn ws-btn-ghost ws-btn-sm" title="Editar">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                        </a>
+                                        <button class="ws-btn ws-btn-danger ws-btn-sm delete-btn" data-filename="@item.FileName" title="Excluir">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
+
+        @if (totalPages > 1)
+        {
+            var prevUrl = currentPage > 1
+                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, approvedOnly = approvedOnly ? (bool?)true : null, page = currentPage - 1 })
+                : null;
+            var nextUrl = currentPage < totalPages
+                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, approvedOnly = approvedOnly ? (bool?)true : null, page = currentPage + 1 })
+                : null;
+
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:22px;flex-wrap:wrap">
+                @if (prevUrl != null)
+                {
+                    <a href="@prevUrl" class="ws-btn ws-btn-ghost ws-btn-sm">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/></svg>
+                        Anterior
+                    </a>
+                }
+                <span style="color:var(--text-muted);font-size:13.5px">
+                    Página @currentPage de @totalPages
+                    <span style="color:var(--text-dim);margin-left:4px">· @totalCount músicas</span>
+                </span>
+                @if (nextUrl != null)
+                {
+                    <a href="@nextUrl" class="ws-btn ws-btn-ghost ws-btn-sm">
+                        Próxima
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </a>
+                }
+            </div>
+        }
     }
 </div>
 
