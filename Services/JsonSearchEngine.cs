@@ -328,6 +328,10 @@ public class JsonSearchEngine : IJsonSearchEngine
         var lower = Normalize(field);
         if (lower == term) return weight * 2;
         if (lower.Contains(term)) return weight;
+        // Prefix and fuzzy matching only for single-word terms.
+        // Multi-word terms (e.g. "isaias 41:10") must match exactly/by substring to avoid
+        // false positives like "Isaías 6" matching the 4-char prefix "isai".
+        if (term.Contains(' ')) return 0;
         // Prefix match: 4+ char shared root
         if (term.Length >= 4)
         {
