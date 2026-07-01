@@ -24,6 +24,16 @@ public class MusicEditorController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> SongView(string fileName, string? back = null)
+    {
+        var doc = await _repository.LoadAsync(fileName);
+        if (doc == null) return NotFound();
+        ViewBag.FileName = fileName;
+        ViewBag.BackUrl  = back ?? Url.Action("Index", "Home");
+        return View(doc);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Edit(string fileName)
     {
         var doc = await _repository.LoadAsync(fileName);

@@ -104,6 +104,10 @@
     display: flex;
     flex-wrap: wrap;
     gap: 7px;
+    max-height: 220px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-card) transparent;
 }
 .ws-picker-chip {
     display: inline-flex;
@@ -295,8 +299,9 @@
                     {
                         var doc = item.Document;
                         var editUrl = Url.Action("Edit","MusicEditor", new { fileName = item.FileName })!;
+                        var viewUrl = Url.Action("SongView","MusicEditor", new { fileName = item.FileName })!;
                         <div class="ws-card ws-fade">
-                            <a href="@editUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
+                            <a href="@viewUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
                                 <div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:12px">
                                     @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
                                     {
@@ -394,8 +399,9 @@
                     {
                         var doc = item.Document;
                         var editUrl = Url.Action("Edit","MusicEditor", new { fileName = item.FileName })!;
+                        var viewUrl = Url.Action("SongView","MusicEditor", new { fileName = item.FileName })!;
                         <div class="ws-card ws-fade" style="opacity:.85">
-                            <a href="@editUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
+                            <a href="@viewUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
                                 <div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:12px">
                                     @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
                                     {

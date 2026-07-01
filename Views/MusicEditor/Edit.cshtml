@@ -300,7 +300,10 @@ $('#saveBtn').click(function(){
 });
 
 function copyLyrics() {
-    var text = document.getElementById('f-lyrics').value;
+    var title  = ($('#f-title').val() || '').trim();
+    var artist = ($('#f-artist').val() || '').trim();
+    var lyrics = document.getElementById('f-lyrics').value;
+    var text   = (title ? title + '\n' + artist + '\n\n' : '') + lyrics;
     navigator.clipboard.writeText(text).then(function() {
         var btn = document.getElementById('copyLyricsBtn');
         var orig = btn.innerHTML;

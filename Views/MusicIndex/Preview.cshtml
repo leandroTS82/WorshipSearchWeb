@@ -453,7 +453,10 @@ $('#saveBtn').click(function(){
 });
 
 function copyLyrics() {
-    var text = document.getElementById('lyricsDisplay').textContent;
+    var title  = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Title  ?? ""));
+    var artist = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Artist ?? ""));
+    var lyrics = document.getElementById('lyricsDisplay').textContent;
+    var text   = title + '\n' + artist + '\n\n' + lyrics;
     navigator.clipboard.writeText(text).then(function() {
         var btn = document.getElementById('copyLyricsBtn');
         var orig = btn.innerHTML;
