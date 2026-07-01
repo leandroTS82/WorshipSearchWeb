@@ -10,6 +10,7 @@ public class MusicIndexController : Controller
     private readonly IMusicJsonGenerator _generator;
     private readonly IMusicEnrichmentService _enrichment;
     private readonly IMusicRepository _repository;
+    private readonly ISuggestionService _suggestions;
     private readonly ILogger<MusicIndexController> _logger;
 
     public MusicIndexController(
@@ -17,12 +18,14 @@ public class MusicIndexController : Controller
         IMusicJsonGenerator generator,
         IMusicEnrichmentService enrichment,
         IMusicRepository repository,
+        ISuggestionService suggestions,
         ILogger<MusicIndexController> logger)
     {
         _parser = parser;
         _generator = generator;
         _enrichment = enrichment;
         _repository = repository;
+        _suggestions = suggestions;
         _logger = logger;
     }
 
@@ -105,6 +108,7 @@ public class MusicIndexController : Controller
                 doc.Metadata.IndexedAt = DateTime.UtcNow.ToString("O");
 
             await _repository.SaveAsync(doc);
+            _suggestions.Invalidate();
             return Json(new { success = true, fileName = _repository.GetFileName(doc) });
         }
         catch (Exception ex)

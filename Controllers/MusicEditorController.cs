@@ -7,10 +7,12 @@ namespace WorshipSearchWeb.Controllers;
 public class MusicEditorController : Controller
 {
     private readonly IMusicRepository _repository;
+    private readonly ISuggestionService _suggestions;
 
-    public MusicEditorController(IMusicRepository repository)
+    public MusicEditorController(IMusicRepository repository, ISuggestionService suggestions)
     {
         _repository = repository;
+        _suggestions = suggestions;
     }
 
     [HttpGet]
@@ -37,6 +39,7 @@ public class MusicEditorController : Controller
         try
         {
             await _repository.SaveAsync(doc);
+            _suggestions.Invalidate();
             return Json(new { success = true });
         }
         catch (Exception ex)

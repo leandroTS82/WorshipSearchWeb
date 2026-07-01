@@ -6,12 +6,7 @@
     var criteriaCount = (int)(ViewBag.CriteriaCount ?? 0);
     var classifiedCriteria = ViewBag.ClassifiedCriteria as List<WorshipSearchWeb.Models.SearchCriterion>;
 
-    var allSuggestions = new[] {
-        "gratidão", "cura", "esperança", "adoração", "Salmo 91", "Santa Ceia",
-        "abertura", "Romanos 8", "intercessão", "louvor", "fé", "graça",
-        "perdão", "salvação", "avivamento", "presença", "encerramento",
-        "Natal", "Páscoa", "batismo", "consagração", "ofertório"
-    };
+    var allSuggestions = ViewBag.Suggestions as string[] ?? Array.Empty<string>();
     var activeTerms = (query ?? "")
         .Split(';', StringSplitOptions.RemoveEmptyEntries)
         .Select(t => t.Trim())

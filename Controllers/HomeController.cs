@@ -13,6 +13,7 @@ public class HomeController : Controller
     private readonly IQueryExpansionService _expansion;
     private readonly ISearchIndexClassifier _classifier;
     private readonly ISearchDocumentService _searchDocService;
+    private readonly ISuggestionService _suggestions;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
@@ -22,6 +23,7 @@ public class HomeController : Controller
         IQueryExpansionService expansion,
         ISearchIndexClassifier classifier,
         ISearchDocumentService searchDocService,
+        ISuggestionService suggestions,
         ILogger<HomeController> logger)
     {
         _searchEngine     = searchEngine;
@@ -30,6 +32,7 @@ public class HomeController : Controller
         _expansion        = expansion;
         _classifier       = classifier;
         _searchDocService = searchDocService;
+        _suggestions      = suggestions;
         _logger           = logger;
     }
 
@@ -118,10 +121,11 @@ public class HomeController : Controller
             }
         }
 
-        ViewBag.Query             = q;
-        ViewBag.ApprovedOnly      = approvedOnly;
-        ViewBag.CriteriaCount     = rawCriteria.Length;
+        ViewBag.Query              = q;
+        ViewBag.ApprovedOnly       = approvedOnly;
+        ViewBag.CriteriaCount      = rawCriteria.Length;
         ViewBag.ClassifiedCriteria = classifiedCriteria;
+        ViewBag.Suggestions        = await _suggestions.GetSuggestionsAsync();
         return View(results);
     }
 
