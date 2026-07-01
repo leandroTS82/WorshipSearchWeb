@@ -110,10 +110,10 @@ public class MusicEnrichmentService : IMusicEnrichmentService
         }
     }
 
-    private static string StripMarkdown(string response) =>
+    internal static string StripMarkdown(string response) =>
         Regex.Replace(response, @"```(?:json)?", string.Empty).Trim();
 
-    private static SearchMetadata ParseTagsOnly(string llmResponse)
+    internal static SearchMetadata ParseTagsOnly(string llmResponse)
     {
         var result = new SearchMetadata();
         try

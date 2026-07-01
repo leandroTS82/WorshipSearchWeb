@@ -37,7 +37,7 @@ public class SearchIndexClassifierService : ISearchIndexClassifier
         "filemon","hebreus","tiago","pedro","judas","apocalipse"
     };
 
-    private static string ApplyLocalOverride(string input, string llmType)
+    internal static string ApplyLocalOverride(string input, string llmType)
     {
         // "Isaías 41:10", "João 3:16" → always biblical_reference
         if (ChapterVersePattern.IsMatch(input)) return "biblical_reference";
@@ -57,7 +57,7 @@ public class SearchIndexClassifierService : ISearchIndexClassifier
         return llmType;
     }
 
-    private static string NormalizeSimple(string s)
+    internal static string NormalizeSimple(string s)
     {
         var formed = s.Normalize(System.Text.NormalizationForm.FormD);
         var sb = new System.Text.StringBuilder(formed.Length);

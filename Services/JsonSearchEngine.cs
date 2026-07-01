@@ -285,7 +285,7 @@ public class JsonSearchEngine : IJsonSearchEngine
         return (total, matchedTerms);
     }
 
-    private static double TitlePriorityBonus(string title, string[] terms, string normRawQuery = "")
+    internal static double TitlePriorityBonus(string title, string[] terms, string normRawQuery = "")
     {
         var normTitle = Normalize(title);
 
@@ -308,7 +308,7 @@ public class JsonSearchEngine : IJsonSearchEngine
         return allFuzzy ? 500 : 0;
     }
 
-    private static int EditDistance(string a, string b)
+    internal static int EditDistance(string a, string b)
     {
         int m = a.Length, n = b.Length;
         var d = new int[m + 1, n + 1];
@@ -322,7 +322,7 @@ public class JsonSearchEngine : IJsonSearchEngine
         return d[m, n];
     }
 
-    private static double ScoreField(string field, string term, double weight)
+    internal static double ScoreField(string field, string term, double weight)
     {
         if (string.IsNullOrWhiteSpace(field)) return 0;
         var lower = Normalize(field);
@@ -350,7 +350,7 @@ public class JsonSearchEngine : IJsonSearchEngine
         return 0;
     }
 
-    private static double ScoreList(List<string>? list, string term, double weight)
+    internal static double ScoreList(List<string>? list, string term, double weight)
     {
         if (list == null) return 0;
         double score = 0;
@@ -360,7 +360,7 @@ public class JsonSearchEngine : IJsonSearchEngine
     }
 
     // Strip diacritics and lowercase so "adoracao" matches "adoração", "fe" matches "fé"
-    private static string Normalize(string s)
+    internal static string Normalize(string s)
     {
         var formed = s.Normalize(NormalizationForm.FormD);
         var sb = new StringBuilder(formed.Length);

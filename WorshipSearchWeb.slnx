@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="WorshipSearchWeb.csproj" />
+  <Project Path="WorshipSearchWeb.Tests/WorshipSearchWeb.Tests.csproj" />
 </Solution>
