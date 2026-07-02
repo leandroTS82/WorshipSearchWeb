@@ -14,6 +14,7 @@ public class HomeController : Controller
     private readonly ISearchIndexClassifier _classifier;
     private readonly ISearchDocumentService _searchDocService;
     private readonly ISuggestionService _suggestions;
+    private readonly IPopularityService _popularity;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
@@ -24,6 +25,7 @@ public class HomeController : Controller
         ISearchIndexClassifier classifier,
         ISearchDocumentService searchDocService,
         ISuggestionService suggestions,
+        IPopularityService popularity,
         ILogger<HomeController> logger)
     {
         _searchEngine     = searchEngine;
@@ -33,6 +35,7 @@ public class HomeController : Controller
         _classifier       = classifier;
         _searchDocService = searchDocService;
         _suggestions      = suggestions;
+        _popularity       = popularity;
         _logger           = logger;
     }
 
@@ -58,6 +61,8 @@ public class HomeController : Controller
 
             // Persist search document without blocking the response
             _ = SaveSearchDocumentAsync(q!, classifiedCriteria, results.Count);
+            if (results.Count > 0)
+                _ = TrackPopularityAsync(results);
         }
         else
         {
@@ -86,30 +91,36 @@ public class HomeController : Controller
             {
                 try { await _history.LogSearchAsync(q, results.Count); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Failed to log search history"); }
+
+                if (results.Count > 0)
+                    _ = TrackPopularityAsync(results);
             }
         }
 
-        // When no query, load top songs by enrichment richness for the empty-state panel
+        // When no query, load top songs ordered by search popularity then enrichment richness
         if (rawCriteria.Length == 0)
         {
             try
             {
                 var all = await _repository.LoadAllAsync();
+                var popularityCounts = await _popularity.LoadAsync();
                 var top = all
                     .Where(x => x.Doc.Approved)
                     .Select(x => new
                     {
                         x.FileName,
                         x.Doc,
-                        Score = (x.Doc.Search?.Themes.Count ?? 0)
-                              + (x.Doc.Search?.BiblicalReferences.Count ?? 0)
-                              + (x.Doc.Search?.Moods.Count ?? 0)
-                              + (x.Doc.Search?.Keywords.Count ?? 0)
-                              + (string.IsNullOrEmpty(x.Doc.Summary) ? 0 : 2)
+                        Popularity = popularityCounts.GetValueOrDefault(x.FileName),
+                        Richness = (x.Doc.Search?.Themes.Count ?? 0)
+                                 + (x.Doc.Search?.BiblicalReferences.Count ?? 0)
+                                 + (x.Doc.Search?.Moods.Count ?? 0)
+                                 + (x.Doc.Search?.Keywords.Count ?? 0)
+                                 + (string.IsNullOrEmpty(x.Doc.Summary) ? 0 : 2)
                     })
-                    .OrderByDescending(x => x.Score)
+                    .OrderByDescending(x => x.Popularity)
+                    .ThenByDescending(x => x.Richness)
                     .Take(6)
-                    .Select(x => new LibrarySearchResult { Document = x.Doc, FileName = x.FileName, Score = x.Score })
+                    .Select(x => new LibrarySearchResult { Document = x.Doc, FileName = x.FileName, Score = x.Popularity })
                     .ToList();
                 ViewBag.TopSongs = top;
                 ViewBag.TotalApproved = all.Count(x => x.Doc.Approved);
@@ -135,6 +146,12 @@ public class HomeController : Controller
         var feature = HttpContext.Features.Get<IExceptionHandlerPathFeature>();
         _logger.LogError(feature?.Error, "Unhandled exception at {Path}", feature?.Path);
         return View(new ErrorViewModel { RequestId = HttpContext.TraceIdentifier });
+    }
+
+    private async Task TrackPopularityAsync(List<LibrarySearchResult> results)
+    {
+        try { await _popularity.IncrementAsync(results.Select(r => r.FileName)); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to track popularity"); }
     }
 
     private async Task SaveSearchDocumentAsync(string rawQuery, List<SearchCriterion> criteria, int resultCount)

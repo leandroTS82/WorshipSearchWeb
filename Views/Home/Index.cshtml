@@ -499,8 +499,9 @@
                 {
                     var doc = item.Document;
                     var editUrl = Url.Action("Edit","MusicEditor", new { fileName = item.FileName })!;
+                    var viewUrl = Url.Action("SongView","MusicEditor", new { fileName = item.FileName })!;
                     <div class="ws-card ws-fade">
-                        <a href="@editUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
+                        <a href="@viewUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
                             <div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:12px">
                                 @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
                                 {
@@ -586,7 +587,7 @@
             <div class="ws-section-header" style="margin-top:24px">
                 <span class="ws-section-title">
                     Músicas em destaque
-                    <span style="font-size:12px;font-weight:400;color:var(--text-dim);margin-left:6px">mais completas no catálogo</span>
+                    <span style="font-size:12px;font-weight:400;color:var(--text-dim);margin-left:6px">mais buscadas no catálogo</span>
                 </span>
                 <a href="@Url.Action("Index","MusicLibrary")" class="ws-btn ws-btn-ghost ws-btn-sm">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -595,15 +596,16 @@
             </div>
             <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px">
                 Estas músicas são as que mais aparecem nos resultados de busca — @totalApproved aprovadas de @totalCount no catálogo.
-                Pesquise por tema, versículo ou emoção para encontrar a músicas ideal.
+                Pesquise por tema, versículo ou emoção para encontrar a música ideal.
             </div>
             <div class="ws-grid ws-grid-3">
                 @foreach (var item in topSongs)
                 {
                     var doc = item.Document;
                     var editUrl = Url.Action("Edit","MusicEditor", new { fileName = item.FileName })!;
+                    var viewUrl = Url.Action("SongView","MusicEditor", new { fileName = item.FileName })!;
                     <div class="ws-card ws-fade">
-                        <a href="@editUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
+                        <a href="@viewUrl" style="display:block;padding:18px 18px 14px;text-decoration:none;color:inherit">
                             <div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:12px">
                                 @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
                                 {

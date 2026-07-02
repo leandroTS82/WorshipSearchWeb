@@ -11,7 +11,7 @@
     var topics   = Model.Search?.BiblicalTopics     ?? new();
     var contexts = Model.Search?.Contexts           ?? new();
     var keywords = Model.Search?.Keywords           ?? new();
-    var hasText  = !string.IsNullOrWhiteSpace;
+    Func<string?, bool> hasText = s => !string.IsNullOrWhiteSpace(s);
 }
 
 <style>

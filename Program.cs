@@ -37,6 +37,7 @@ builder.Services.AddSingleton<ISuggestionService, SuggestionService>();
 builder.Services.AddScoped<IQueryExpansionService, QueryExpansionService>();
 builder.Services.AddScoped<ISearchIndexClassifier, SearchIndexClassifierService>();
 builder.Services.AddScoped<ISearchDocumentService, SearchDocumentService>();
+builder.Services.AddSingleton<IPopularityService, PopularityService>();
 
 var app = builder.Build();
 
