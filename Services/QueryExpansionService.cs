@@ -33,7 +33,7 @@ public class QueryExpansionService : IQueryExpansionService
 
             var numberedList = string.Join("\n", criteriaList.Select((c, i) => $"{i + 1}. {c}"));
             var prompt = PromptTemplates.QueryExpansionTemplate.Replace("{criteria_list}", numberedList);
-            var response = await _groq.CompleteAsync(prompt);
+            var (response, _) = await _groq.CompleteAsync(prompt);
 
             var trimmed = response.Trim();
             var start = trimmed.IndexOf('{');

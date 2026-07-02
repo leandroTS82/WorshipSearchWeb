@@ -1,0 +1,143 @@
+@model WorshipSearchWeb.Models.AdditionalSuggestions
+@{
+    ViewData["Title"] = "Sugestões Adicionais";
+}
+
+<div style="max-width:720px;margin:0 auto" class="ws-fade">
+
+    <div style="margin-bottom:28px">
+        <div class="ws-page-title">Sugestões Adicionais</div>
+        <div class="ws-page-sub">Tags fixas exibidas junto às sugestões automáticas na pesquisa. Úteis para termos frequentes do seu grupo de louvor.</div>
+    </div>
+
+    <div class="ws-card" style="padding:24px;margin-bottom:20px">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:16px">Adicionar sugestão</div>
+        <div style="display:flex;gap:10px;align-items:center">
+            <input type="text" id="new-term" class="ws-input" style="flex:1;padding:11px 14px"
+                   placeholder="Ex: esperança, gratidão, Salmo 23…" autocomplete="off" />
+            <button id="addBtn" class="ws-btn ws-btn-primary" style="padding:11px 20px;white-space:nowrap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="margin-right:6px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Adicionar
+            </button>
+        </div>
+        <div style="margin-top:10px;font-size:12.5px;color:var(--text-dim)">
+            Os termos são salvos em lowercase e exibidos ao lado das sugestões automáticas na tela de pesquisa.
+        </div>
+    </div>
+
+    <div class="ws-card" style="padding:24px">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:16px">
+            Sugestões cadastradas <span id="count-label" style="font-weight:600;color:var(--text-sub)">(@Model.Items.Count)</span>
+        </div>
+
+        <div id="status-msg" style="display:none;margin-bottom:14px;font-size:13.5px"></div>
+
+        <div id="chips-area" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px">
+            @if (Model.Items.Count == 0)
+            {
+                <span id="empty-msg" style="color:var(--text-dim);font-size:13.5px">Nenhuma sugestão adicional cadastrada.</span>
+            }
+            @foreach (var term in Model.Items)
+            {
+                <span class="ws-addsugg-chip" data-term="@term">
+                    @term
+                    <button onclick="removeTerm('@term')" title="Remover">×</button>
+                </span>
+            }
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<style>
+.ws-addsugg-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 6px 13px;
+    border-radius: 999px;
+    background: rgba(214,145,95,0.13);
+    border: 1px solid rgba(214,145,95,0.32);
+    color: var(--accent);
+    font-size: 13px;
+}
+.ws-addsugg-chip button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: .7;
+}
+.ws-addsugg-chip button:hover { opacity: 1; }
+</style>
+<script>
+function showStatus(msg, type) {
+    var colors = { ok: 'var(--accent)', err: '#ff8a80' };
+    var el = $('#status-msg');
+    el.css('color', colors[type] || 'var(--text-muted)').text(msg).show();
+    setTimeout(function(){ el.fadeOut(); }, 2500);
+}
+
+function chipHtml(term) {
+    return '<span class="ws-addsugg-chip" data-term="' + escHtml(term) + '">' +
+        escHtml(term) +
+        '<button onclick="removeTerm(\'' + escHtml(term) + '\')" title="Remover">×</button>' +
+        '</span>';
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+}
+
+function updateCount(list) {
+    $('#count-label').text('(' + list.length + ')');
+    if (list.length === 0)
+        $('#chips-area').html('<span id="empty-msg" style="color:var(--text-dim);font-size:13.5px">Nenhuma sugestão adicional cadastrada.</span>');
+}
+
+$('#addBtn').click(function() {
+    var term = $('#new-term').val().trim().toLowerCase();
+    if (!term) return;
+    $(this).prop('disabled', true);
+    $.ajax({
+        url: '@Url.Action("Add","AdditionalSuggestions")',
+        method: 'POST', contentType: 'application/json',
+        data: JSON.stringify({ term: term }),
+        success: function(r) {
+            if ($('[data-term="' + term + '"]').length === 0) {
+                $('#empty-msg').remove();
+                $('#chips-area').append(chipHtml(term));
+            }
+            updateCount(r.items);
+            $('#new-term').val('');
+            showStatus('Sugestão adicionada.', 'ok');
+        },
+        error: function(xhr) {
+            var msg = 'Erro ao adicionar.';
+            try { var r = JSON.parse(xhr.responseText); if (r.error) msg = r.error; } catch(e) {}
+            showStatus(msg, 'err');
+        }
+    }).always(function() { $('#addBtn').prop('disabled', false); });
+});
+
+$('#new-term').on('keydown', function(e) { if (e.key === 'Enter') $('#addBtn').click(); });
+
+function removeTerm(term) {
+    $.ajax({
+        url: '@Url.Action("Remove","AdditionalSuggestions")',
+        method: 'POST', contentType: 'application/json',
+        data: JSON.stringify({ term: term }),
+        success: function(r) {
+            $('[data-term="' + term + '"]').remove();
+            updateCount(r.items);
+            showStatus('Sugestão removida.', 'ok');
+        },
+        error: function() { showStatus('Erro ao remover.', 'err'); }
+    });
+}
+</script>
+}

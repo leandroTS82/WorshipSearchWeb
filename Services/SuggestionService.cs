@@ -9,14 +9,16 @@ public interface ISuggestionService
 public class SuggestionService : ISuggestionService
 {
     private readonly IMusicRepository _repository;
+    private readonly IAdditionalSuggestionsService _additionalSuggestions;
     private readonly ILogger<SuggestionService> _logger;
     private volatile string[]? _cache;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    public SuggestionService(IMusicRepository repository, ILogger<SuggestionService> logger)
+    public SuggestionService(IMusicRepository repository, IAdditionalSuggestionsService additionalSuggestions, ILogger<SuggestionService> logger)
     {
-        _repository = repository;
-        _logger = logger;
+        _repository            = repository;
+        _additionalSuggestions = additionalSuggestions;
+        _logger                = logger;
     }
 
     public async Task<string[]> GetSuggestionsAsync()
@@ -43,6 +45,9 @@ public class SuggestionService : ISuggestionService
         try
         {
             var all = await _repository.LoadAllAsync();
+            var additional = (await _additionalSuggestions.LoadAsync()).Items
+                .Select(x => x.ToLowerInvariant())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var freq = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             void Count(IEnumerable<string>? list, int weight = 1)
@@ -76,6 +81,7 @@ public class SuggestionService : ISuggestionService
                 freq.Count, all.Count);
 
             return freq
+                .Where(x => !additional.Contains(x.Key))
                 .OrderByDescending(x => x.Value)
                 .ThenBy(x => x.Key)
                 .Take(60)

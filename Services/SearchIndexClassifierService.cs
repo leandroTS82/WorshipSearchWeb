@@ -74,7 +74,7 @@ public class SearchIndexClassifierService : ISearchIndexClassifier
         try
         {
             var prompt = PromptTemplates.CriterionClassificationTemplate.Replace("{input}", input);
-            var response = await _groq.CompleteAsync(prompt);
+            var (response, _) = await _groq.CompleteAsync(prompt);
 
             var cleaned = Regex.Replace(response, @"```(?:json)?", string.Empty).Trim();
             var start = cleaned.IndexOf('{');

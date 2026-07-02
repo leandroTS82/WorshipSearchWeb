@@ -28,7 +28,8 @@ public class MusicJsonGenerator : IMusicJsonGenerator
                 Source = "letras.mus.br",
                 CanonicalUrl = parsed.CanonicalUrl,
                 Image = parsed.Image,
-                IndexedAt = DateTime.UtcNow.ToString("O")
+                IndexedAt = DateTime.UtcNow.ToString("O"),
+                YoutubeId = parsed.YoutubeId
             },
             Search = new SearchMetadata()
         };

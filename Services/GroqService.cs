@@ -6,7 +6,7 @@ namespace WorshipSearchWeb.Services;
 
 public interface IGroqService
 {
-    Task<string> CompleteAsync(string prompt, string model = "openai/gpt-oss-120b");
+    Task<(string Content, string KeyUsed)> CompleteAsync(string prompt, string model = "openai/gpt-oss-120b", string? providedKey = null);
 }
 
 public class GroqService : IGroqService
@@ -24,9 +24,9 @@ public class GroqService : IGroqService
         _logger = logger;
     }
 
-    public async Task<string> CompleteAsync(string prompt, string model = "openai/gpt-oss-120b")
+    public async Task<(string Content, string KeyUsed)> CompleteAsync(string prompt, string model = "openai/gpt-oss-120b", string? providedKey = null)
     {
-        var apiKey = await _llmKeyService.GetGroqKeyAsync();
+        var apiKey = providedKey ?? await _llmKeyService.GetGroqKeyAsync();
 
         var requestBody = new
         {
@@ -64,6 +64,12 @@ public class GroqService : IGroqService
             .GetProperty("content")
             .GetString();
 
-        return message ?? string.Empty;
+        return (message ?? string.Empty, apiKey);
+    }
+
+    public static string MaskKey(string key)
+    {
+        if (string.IsNullOrEmpty(key) || key.Length <= 12) return "****";
+        return key[..8] + "..." + key[^4..];
     }
 }

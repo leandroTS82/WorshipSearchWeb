@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using WorshipSearchWeb.Models;
 using WorshipSearchWeb.Services;
@@ -48,6 +49,18 @@ public class MusicEditorController : Controller
     {
         try
         {
+            if (doc.Metadata != null)
+            {
+                // If YoutubeId looks like a URL, extract the 11-char ID
+                var raw = doc.Metadata.YoutubeId;
+                if (!string.IsNullOrWhiteSpace(raw) && raw.Contains('/'))
+                {
+                    var m = Regex.Match(raw, @"[?&]v=([A-Za-z0-9_-]{11})")
+                         ?? Regex.Match(raw, @"youtu\.be/([A-Za-z0-9_-]{11})");
+                    doc.Metadata.YoutubeId = m.Success ? m.Groups[1].Value : raw;
+                }
+            }
+
             await _repository.SaveAsync(doc);
             _suggestions.Invalidate();
             return Json(new { success = true });

@@ -15,4 +15,7 @@ public class EnrichParagraphRequest
 
     [JsonPropertyName("existing_tags")]
     public SearchMetadata ExistingTags { get; set; } = new();
+
+    [JsonPropertyName("key")]
+    public string? Key { get; set; }
 }

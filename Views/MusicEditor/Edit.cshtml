@@ -79,10 +79,6 @@
                         }
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-card)">
-                    <input type="checkbox" id="f-approved" @(Model.Approved ? "checked" : "") style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" />
-                    <label for="f-approved" style="cursor:pointer;font-size:14px">Aprovada</label>
-                </div>
             </div>
 
             <div class="ws-card" style="margin-bottom:14px">
@@ -103,8 +99,10 @@
                     <input type="text" id="f-canonical-url" class="ws-input" style="padding:9px 12px;font-size:13px" value="@Model.Metadata?.CanonicalUrl" />
                 </div>
                 <div class="ws-form-group">
-                    <label class="ws-label">Link do YouTube</label>
-                    <input type="text" id="f-youtube-url" class="ws-input" style="padding:9px 12px;font-size:13px" value="@Model.Metadata?.YoutubeUrl" placeholder="https://youtube.com/watch?v=..." />
+                    <label class="ws-label">YouTube <span style="font-weight:400;color:var(--text-muted)">(ID ou link completo)</span></label>
+                    <input type="text" id="f-youtube-url" class="ws-input" style="padding:9px 12px;font-size:13px"
+                           value="@(string.IsNullOrWhiteSpace(Model.Metadata?.YoutubeId) ? Model.Metadata?.YoutubeUrl : Model.Metadata?.YoutubeId)"
+                           placeholder="dQw4w9WgXcQ ou https://youtube.com/watch?v=..." />
                 </div>
                 <div class="ws-form-group" style="margin-bottom:0">
                     <label class="ws-label">Imagem</label>
@@ -204,6 +202,16 @@ function toggleEditorMoment(moment, btn) {
     else { editorMoments.splice(idx, 1); $(btn).removeClass('selected'); }
 }
 
+function extractYoutubeId(val) {
+    if (!val) return '';
+    val = val.trim();
+    // Already an ID (11 chars, no slash)
+    if (/^[A-Za-z0-9_-]{11}$/.test(val)) return val;
+    // Full URL: youtube.com/watch?v=ID or youtu.be/ID
+    var m = val.match(/[?&]v=([A-Za-z0-9_-]{11})/) || val.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : val;
+}
+
 function toLines(id) {
     return $('#' + id).val().split('\n').map(function(s){ return s.trim(); }).filter(function(s){ return s; });
 }
@@ -216,7 +224,6 @@ function collectDoc() {
         album: $('#f-album').val(),
         genre: $('#f-genre').val(),
         language: $('#f-language').val(),
-        approved: $('#f-approved').is(':checked'),
         lyrics: $('#f-lyrics').val(),
         summary: $('#f-summary').val(),
         explanation: $('#f-explanation').val(),
@@ -239,6 +246,7 @@ function collectDoc() {
         metadata: {
             source: 'letras.mus.br',
             canonical_url: $('#f-canonical-url').val(),
+            youtube_id: extractYoutubeId($('#f-youtube-url').val()),
             youtube_url: $('#f-youtube-url').val(),
             image: $('#f-image').val(),
             indexed_at: '@Model.Metadata?.IndexedAt'
@@ -347,7 +355,7 @@ $('#enrichBtn').click(async function(){
     for (var i = 0; i < paragraphs.length; i++) {
         showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Estrofe ' + (i+1) + '/' + paragraphs.length + skippedMsg + '…', 'info');
         try {
-            var newTags = await $.ajax({ url: '@Url.Action("EnrichParagraph","MusicIndex")', method: 'POST', contentType: 'application/json',
+            var newTags = await ajaxWithRetry({ url: '@Url.Action("EnrichParagraph","MusicIndex")', method: 'POST', contentType: 'application/json',
                 data: JSON.stringify({ paragraph: paragraphs[i], title: doc.title, artist: doc.artist, existing_tags: accumulated }) });
             ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms','worship_moments'].forEach(function(f){
                 var added = (newTags[f] || []).filter(function(v){ return v && !accumulated[f].some(function(e){ return e.toLowerCase()===v.toLowerCase(); }); });
@@ -362,7 +370,7 @@ $('#enrichBtn').click(async function(){
     showStatus('<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Gerando resumo…', 'info');
     try {
         doc.search = accumulated;
-        var summary = await $.ajax({ url: '@Url.Action("EnrichSummary","MusicIndex")', method: 'POST', contentType: 'application/json', data: JSON.stringify(doc) });
+        var summary = await ajaxWithRetry({ url: '@Url.Action("EnrichSummary","MusicIndex")', method: 'POST', contentType: 'application/json', data: JSON.stringify(doc) });
         $('#f-summary').val(summary.summary || '');
         $('#f-explanation').val(summary.explanation || '');
         $('#f-practical').val(summary.practical_application || '');
