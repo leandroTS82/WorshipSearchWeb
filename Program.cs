@@ -36,6 +36,7 @@ builder.Services.AddSingleton<IAppLogger, FileAppLogger>();
 builder.Services.AddScoped<IQueryExpansionService, QueryExpansionService>();
 builder.Services.AddScoped<ISearchIndexClassifier, SearchIndexClassifierService>();
 builder.Services.AddScoped<ISearchDocumentService, SearchDocumentService>();
+builder.Services.AddScoped<IEscalaRepository, EscalaRepository>();
 
 var app = builder.Build();
 

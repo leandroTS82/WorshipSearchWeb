@@ -1,0 +1,471 @@
+@model WorshipSearchWeb.Models.EscalaDocument
+@{
+    ViewData["Title"] = (bool)ViewBag.IsNew ? "Nova Escala" : "Editar Escala";
+    var docJson = System.Text.Json.JsonSerializer.Serialize(Model, new System.Text.Json.JsonSerializerOptions {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    });
+}
+
+<style>
+.escala-song-row { transition: background .12s; }
+.escala-song-row:hover { background: rgba(255,255,255,.015); }
+.song-result-item { padding:10px 14px; cursor:pointer; transition:background .1s; border-bottom:1px solid var(--border-card); display:flex; align-items:center; gap:12px; }
+.song-result-item:last-child { border-bottom:none; }
+.song-result-item:hover { background:rgba(255,255,255,.04); }
+.ministro-option { padding:9px 14px; cursor:pointer; font-size:14px; transition:background .1s; }
+.ministro-option:hover { background:rgba(255,255,255,.06); }
+.momento-preset { padding:3px 10px; font-size:12px; border-radius:999px; cursor:pointer; background:var(--accent-soft); border:1px solid var(--accent-line); color:var(--accent); font-family:inherit; transition:opacity .1s; }
+.momento-preset:hover { opacity:.8; }
+#ws-toast {
+    display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    padding:10px 22px; border-radius:10px; font-size:14px; z-index:9999;
+    box-shadow:0 4px 20px rgba(0,0,0,.4); white-space:nowrap;
+}
+.ws-toast-ok    { background:#1e3b28; border:1px solid rgba(60,180,90,.35); color:#69d18a; }
+.ws-toast-error { background:#3b1a1a; border:1px solid rgba(220,50,50,.35); color:#ff8a80; }
+.preview-pre { white-space:pre-wrap; font-family:'Instrument Sans',system-ui,sans-serif; font-size:13.5px; line-height:1.8; color:var(--text-sub); padding:18px; background:rgba(0,0,0,.2); border:1px solid var(--border-card); border-radius:10px; min-height:80px; }
+</style>
+
+<div style="max-width:900px;margin:0 auto" class="ws-fade">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:14px;flex-wrap:wrap">
+        <div>
+            <div class="ws-page-title">@((bool)ViewBag.IsNew ? "Nova Escala" : "Editar Escala")</div>
+            <div class="ws-page-sub">Monte a escala e copie a mensagem para o grupo de louvor</div>
+        </div>
+        <a href="@Url.Action("Index","Escala")" class="ws-btn ws-btn-ghost ws-btn-sm" style="margin-top:4px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/></svg>
+            Minhas escalas
+        </a>
+    </div>
+
+    <!-- Help tip -->
+    <div data-tip-id="escala-how" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:10px;background:var(--accent-soft);border:1px solid var(--accent-line);margin-bottom:20px;font-size:13.5px;line-height:1.6;color:var(--text-sub)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>
+            <strong style="color:var(--text)">Como usar:</strong>
+            Preencha o título e a data, informe o nome do ministro, depois busque as músicas e adicione uma a uma.
+            O link do YouTube é preenchido automaticamente se já estiver cadastrado. Ao terminar, clique em <strong style="color:var(--text)">Copiar</strong> para gerar a mensagem pronta para o grupo.
+        </span>
+        <button type="button" onclick="this.parentElement.style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:20px;line-height:1;padding:0;margin-left:auto;flex-shrink:0">×</button>
+    </div>
+
+    <!-- Card 1: Informações básicas -->
+    <div class="ws-card" style="padding:22px;margin-bottom:14px">
+        <div class="ws-section-header" style="margin-top:0">
+            <span class="ws-section-title">Informações da escala</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="ws-form-group" style="margin-bottom:0">
+                <label class="ws-label" for="f-titulo">Título da escala *</label>
+                <input id="f-titulo" type="text" class="ws-input" placeholder="Ex: Ceia da manhã, Culto de jovens…"
+                       value="@Model.Titulo" oninput="onField('Titulo',this.value)">
+            </div>
+            <div class="ws-form-group" style="margin-bottom:0">
+                <label class="ws-label" for="f-data">Data *</label>
+                <input id="f-data" type="date" class="ws-input" value="@Model.Data" oninput="onField('Data',this.value)">
+            </div>
+        </div>
+        <div style="margin-top:16px;position:relative" id="ministro-wrap">
+            <label class="ws-label" for="f-ministro">Nome do ministro</label>
+            <input id="f-ministro" type="text" class="ws-input" placeholder="Digite o nome do ministro ou ministra…"
+                   value="@Model.Ministro" autocomplete="off"
+                   oninput="onMinistroInput(this.value)"
+                   onfocus="onMinistroFocus()">
+            <div id="ministro-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--bg-card);border:1px solid var(--border-card);border-radius:10px;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,.35);max-height:200px;overflow-y:auto"></div>
+        </div>
+        <div style="margin-top:16px">
+            <label class="ws-label" for="f-obs">Observação / saudação inicial (opcional)</label>
+            <textarea id="f-obs" class="ws-input" rows="2"
+                      placeholder="Ex: A paz pessoal. Seguem os louvores de quinta-feira. — Se vazio, usa saudação padrão."
+                      oninput="onField('Observacao',this.value)">@Model.Observacao</textarea>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:4px">
+                Se não preencher, será usado: <em>"Bom dia pessoal, segue os louvores de"</em>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Músicas -->
+    <div class="ws-card" style="padding:22px;margin-bottom:14px">
+        <div class="ws-section-header" style="margin-top:0">
+            <span class="ws-section-title">Músicas da escala</span>
+            <span style="font-size:12.5px;color:var(--text-dim)" id="song-count-label">0 música(s)</span>
+        </div>
+
+        <!-- Search box -->
+        <div style="position:relative;margin-bottom:8px">
+            <svg style="position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+            <input id="song-search" type="text" class="ws-input" style="padding-left:40px"
+                   placeholder="Buscar música na biblioteca (título ou artista)…"
+                   autocomplete="off" oninput="onSongSearch(this.value)">
+        </div>
+        <div id="song-results" style="border-radius:10px;overflow:hidden;border:1px solid var(--border-card);margin-bottom:16px;display:none"></div>
+
+        <!-- Song list -->
+        <div id="song-list"></div>
+    </div>
+
+    <!-- Card 3: Pré-visualização -->
+    <div class="ws-card" style="padding:22px;margin-bottom:20px">
+        <div class="ws-section-header" style="margin-top:0">
+            <span class="ws-section-title">Mensagem gerada</span>
+            <button type="button" onclick="doCopy()" class="ws-btn ws-btn-ghost ws-btn-sm">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copiar
+            </button>
+        </div>
+        <div id="preview-text" class="preview-pre"></div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:10px">
+            Esta é exatamente a mensagem que será enviada. Atualize automaticamente conforme você edita.
+        </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px">
+        <button id="btn-save-close" type="button" onclick="doSaveClose()" class="ws-btn ws-btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13"/><polyline points="7 3 7 8 15 8"/></svg>
+            Salvar e Fechar
+        </button>
+        <button id="btn-save-copy" type="button" onclick="doSaveCopy()" class="ws-btn ws-btn-ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Salvar e Copiar
+        </button>
+        <button id="btn-save" type="button" onclick="doSave()" class="ws-btn ws-btn-ghost">
+            Salvar
+        </button>
+        <button type="button" onclick="doCopy()" class="ws-btn ws-btn-ghost">
+            Copiar mensagem
+        </button>
+    </div>
+</div>
+
+<div id="ws-toast"></div>
+
+@section Scripts {
+<script>
+var escalaDoc = @Html.Raw(docJson);
+var isNew     = @((bool)ViewBag.IsNew ? "true" : "false");
+var saveUrl   = '@Url.Action("Save","Escala")';
+var indexUrl  = '@Url.Action("Index","Escala")';
+var searchUrl = '@Url.Action("SearchSongs","Escala")';
+var ministrosUrl = '@Url.Action("Ministros","Escala")';
+
+var allMinistros = [];
+var searchTimer  = null;
+
+// ── Field sync ────────────────────────────────────────────────────────────────
+
+function onField(key, val) {
+    escalaDoc[key] = val;
+    updatePreview();
+}
+
+// ── Minister autocomplete ────────────────────────────────────────────────────
+
+async function loadMinistros() {
+    if (allMinistros.length) return;
+    try {
+        var r = await fetch(ministrosUrl);
+        allMinistros = await r.json();
+    } catch(e) {}
+}
+
+function onMinistroFocus() {
+    loadMinistros().then(function() { filterMinistros(document.getElementById('f-ministro').value); });
+}
+
+function onMinistroInput(v) {
+    escalaDoc.Ministro = v;
+    loadMinistros().then(function() { filterMinistros(v); });
+}
+
+function filterMinistros(q) {
+    var dd = document.getElementById('ministro-dropdown');
+    var low = q.trim().toLowerCase();
+    var filtered = low
+        ? allMinistros.filter(function(m) { return m.toLowerCase().includes(low); })
+        : allMinistros;
+    if (!filtered.length) { dd.style.display = 'none'; return; }
+    dd.innerHTML = filtered.map(function(m) {
+        return '<div class="ministro-option" onclick="selectMinistro(' + JSON.stringify(m) + ')">' + esc(m) + '</div>';
+    }).join('');
+    dd.style.display = 'block';
+}
+
+function selectMinistro(name) {
+    document.getElementById('f-ministro').value = name;
+    escalaDoc.Ministro = name;
+    document.getElementById('ministro-dropdown').style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('ministro-wrap');
+    if (wrap && !wrap.contains(e.target))
+        document.getElementById('ministro-dropdown').style.display = 'none';
+});
+
+// ── Song search ───────────────────────────────────────────────────────────────
+
+function onSongSearch(v) {
+    clearTimeout(searchTimer);
+    var el = document.getElementById('song-results');
+    if (!v || v.length < 2) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    searchTimer = setTimeout(function() { doSearch(v); }, 280);
+}
+
+async function doSearch(q) {
+    var el = document.getElementById('song-results');
+    el.innerHTML = '<div style="padding:12px 14px;color:var(--text-dim);font-size:13.5px">Buscando…</div>';
+    el.style.display = 'block';
+    try {
+        var r = await fetch(searchUrl + '?q=' + encodeURIComponent(q));
+        var songs = await r.json();
+        if (!songs.length) {
+            el.innerHTML = '<div style="padding:12px 14px;color:var(--text-dim);font-size:13.5px">Nenhuma música encontrada na biblioteca. <a href="' + '@Url.Action("Index","MusicSearch")' + '" style="color:var(--accent)">Adicionar música</a></div>';
+            return;
+        }
+        el.innerHTML = songs.map(function(s) {
+            var ytIcon = s.youtubeUrl
+                ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="#ff4e4e" style="flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.96-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon fill="white" points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"/></svg>'
+                : '';
+            return '<div class="song-result-item" onclick="addSong(' + esc(JSON.stringify(s)) + ')">'
+                + '<div style="flex:1;min-width:0"><div style="font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.titulo) + '</div>'
+                + '<div style="font-size:12.5px;color:var(--text-muted)">' + esc(s.artista) + '</div></div>'
+                + ytIcon
+                + '<span class="ws-btn ws-btn-ghost ws-btn-sm" style="pointer-events:none;font-size:12px">+ Adicionar</span></div>';
+        }).join('');
+    } catch(e) {
+        el.innerHTML = '<div style="padding:12px 14px;color:#ff8a80;font-size:13.5px">Erro ao buscar músicas.</div>';
+    }
+}
+
+// ── Song list management ──────────────────────────────────────────────────────
+
+function addSong(song) {
+    if (escalaDoc.Musicas.find(function(m) { return m.FileName === song.fileName; })) {
+        showToast('Música já adicionada na escala', 'error'); return;
+    }
+    escalaDoc.Musicas.push({
+        FileName: song.fileName,
+        Titulo: song.titulo,
+        Artista: song.artista,
+        YoutubeUrl: song.youtubeUrl || '',
+        Momento: '',
+        Obs: ''
+    });
+    document.getElementById('song-search').value = '';
+    var el = document.getElementById('song-results');
+    el.style.display = 'none'; el.innerHTML = '';
+    renderSongs();
+    updatePreview();
+}
+
+function removeSong(idx) {
+    escalaDoc.Musicas.splice(idx, 1);
+    renderSongs();
+    updatePreview();
+}
+
+function moveSong(idx, dir) {
+    var n = idx + dir;
+    if (n < 0 || n >= escalaDoc.Musicas.length) return;
+    var tmp = escalaDoc.Musicas[idx];
+    escalaDoc.Musicas[idx] = escalaDoc.Musicas[n];
+    escalaDoc.Musicas[n] = tmp;
+    renderSongs();
+    updatePreview();
+}
+
+function updateSongField(idx, field, val) {
+    escalaDoc.Musicas[idx][field] = val;
+    updatePreview();
+}
+
+function setSongMomento(idx, val) {
+    escalaDoc.Musicas[idx].Momento = val;
+    var inp = document.getElementById('mom-' + idx);
+    if (inp) inp.value = val;
+    updatePreview();
+}
+
+function renderSongs() {
+    var el = document.getElementById('song-list');
+    var count = escalaDoc.Musicas.length;
+    document.getElementById('song-count-label').textContent = count + ' música(s)';
+    if (!count) {
+        el.innerHTML = '<div style="text-align:center;padding:32px 20px;color:var(--text-dim);font-size:14px;border:1px dashed var(--border-card);border-radius:10px">Use a busca acima para adicionar músicas à escala.</div>';
+        return;
+    }
+    var presets = ['Ceia', 'Oferta', 'Apelo', 'Comunhão', 'Abertura', 'Encerramento'];
+    el.innerHTML = escalaDoc.Musicas.map(function(m, i) {
+        var isFirst = i === 0;
+        var isLast  = i === count - 1;
+        var presetsHtml = presets.map(function(p) {
+            return '<button type="button" class="momento-preset" onclick="setSongMomento(' + i + ',' + JSON.stringify(p) + ')">' + esc(p) + '</button>';
+        }).join('');
+        return '<div class="escala-song-row" style="border-bottom:' + (isLast ? 'none' : '1px solid var(--border-card)') + ';padding:16px">'
+            + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+            + '<div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">'
+            + '<button type="button" class="ws-btn ws-btn-ghost ws-btn-sm" style="padding:2px 8px;font-size:12px" onclick="moveSong(' + i + ',-1)" title="Mover para cima"' + (isFirst ? ' disabled' : '') + '>↑</button>'
+            + '<button type="button" class="ws-btn ws-btn-ghost ws-btn-sm" style="padding:2px 8px;font-size:12px" onclick="moveSong(' + i + ',1)" title="Mover para baixo"' + (isLast ? ' disabled' : '') + '>↓</button>'
+            + '</div>'
+            + '<div style="flex:1;min-width:0">'
+            + '<div style="font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(m.Titulo) + '</div>'
+            + '<div style="font-size:13px;color:var(--text-muted)">' + esc(m.Artista) + '</div>'
+            + '</div>'
+            + '<button type="button" class="ws-btn ws-btn-danger ws-btn-sm" onclick="removeSong(' + i + ')" title="Remover música">'
+            + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+            + '</button></div>'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
+            + '<div><label class="ws-label" style="display:block">Link YouTube</label>'
+            + '<input type="url" class="ws-input" style="font-size:13px;padding:8px 12px" value="' + esc(m.YoutubeUrl) + '" placeholder="https://youtu.be/…" oninput="updateSongField(' + i + ',\'YoutubeUrl\',this.value)"></div>'
+            + '<div><label class="ws-label" style="display:block">Observação <span style="color:var(--text-dim)">(opcional — ex: Tom A)</span></label>'
+            + '<input type="text" class="ws-input" style="font-size:13px;padding:8px 12px" value="' + esc(m.Obs) + '" placeholder="Tom A, Tom original…" oninput="updateSongField(' + i + ',\'Obs\',this.value)"></div>'
+            + '</div>'
+            + '<div><label class="ws-label">Momento na escala <span style="color:var(--text-dim)">(opcional)</span></label>'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' + presetsHtml + '</div>'
+            + '<input type="text" id="mom-' + i + '" class="ws-input" style="font-size:13px;padding:8px 12px" value="' + esc(m.Momento) + '" placeholder="Ex: Ceia, Oferta, Apelo…" oninput="updateSongField(' + i + ',\'Momento\',this.value)"></div>'
+            + '</div>';
+    }).join('');
+}
+
+// ── Preview & copy text ───────────────────────────────────────────────────────
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    var d = new Date(dateStr + 'T12:00:00');
+    if (isNaN(d)) return dateStr;
+    var days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    var dd = String(d.getDate()).padStart(2, '0');
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    return days[d.getDay()] + ' dia ' + dd + '/' + mm;
+}
+
+function generateText() {
+    var lines = [];
+    var obs = (escalaDoc.Observacao || '').trim();
+    lines.push(obs || 'Bom dia pessoal, segue os louvores de');
+    lines.push('');
+    if (escalaDoc.Data) {
+        lines.push('*' + formatDate(escalaDoc.Data) + ' ' + (escalaDoc.Titulo || '').toLowerCase() + '*');
+        lines.push('');
+    }
+    var curMomento = null;
+    (escalaDoc.Musicas || []).forEach(function(m) {
+        var mom = (m.Momento || '').trim();
+        if (mom && mom !== curMomento) {
+            lines.push(mom + ':');
+            curMomento = mom;
+        }
+        var line = (m.Titulo || '') + ' - ' + (m.Artista || '');
+        if (m.Obs) line += ' (' + m.Obs + ')';
+        lines.push(line);
+        if (m.YoutubeUrl) lines.push(m.YoutubeUrl);
+        lines.push('');
+    });
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
+}
+
+function updatePreview() {
+    document.getElementById('preview-text').textContent = generateText();
+}
+
+function doCopy() {
+    var text = generateText();
+    var copyFn = function() {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(function() { showToast('Mensagem copiada!', 'ok'); });
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast('Mensagem copiada!', 'ok');
+        }
+    };
+    copyFn();
+}
+
+// ── Save actions ──────────────────────────────────────────────────────────────
+
+function collectForm() {
+    escalaDoc.Titulo     = document.getElementById('f-titulo').value.trim();
+    escalaDoc.Data       = document.getElementById('f-data').value;
+    escalaDoc.Ministro   = document.getElementById('f-ministro').value.trim();
+    escalaDoc.Observacao = document.getElementById('f-obs').value.trim();
+}
+
+async function saveEscala(btnId) {
+    collectForm();
+    if (!escalaDoc.Titulo) { showToast('Preencha o título da escala', 'error'); return false; }
+    if (!escalaDoc.Data)   { showToast('Informe a data da escala', 'error'); return false; }
+
+    var btn = document.getElementById(btnId);
+    var orig = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ws-spinner" style="width:14px;height:14px;border-width:2px"></span>'; }
+
+    try {
+        var r = await fetch(saveUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(escalaDoc)
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var data = await r.json();
+        if (!data.success) throw new Error('Falha ao salvar');
+        escalaDoc.Id = data.id;
+        isNew = false;
+        showToast('Escala salva!', 'ok');
+        return true;
+    } catch(e) {
+        showToast('Erro ao salvar: ' + e.message, 'error');
+        return false;
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+    }
+}
+
+async function doSave() {
+    await saveEscala('btn-save');
+}
+
+async function doSaveClose() {
+    if (await saveEscala('btn-save-close'))
+        window.location.href = indexUrl;
+}
+
+async function doSaveCopy() {
+    if (await saveEscala('btn-save-copy')) {
+        doCopy();
+        setTimeout(function() { window.location.href = indexUrl; }, 600);
+    }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+function showToast(msg, type) {
+    var t = document.getElementById('ws-toast');
+    t.textContent = msg;
+    t.className = type === 'ok' ? 'ws-toast-ok' : 'ws-toast-error';
+    t.style.display = 'block';
+    clearTimeout(t._hide);
+    t._hide = setTimeout(function() { t.style.display = 'none'; }, 2600);
+}
+
+// ── HTML escape ───────────────────────────────────────────────────────────────
+
+function esc(s) {
+    if (typeof s !== 'string') return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadMinistros();
+    renderSongs();
+    updatePreview();
+});
+</script>
+}
