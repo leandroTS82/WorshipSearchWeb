@@ -22,6 +22,9 @@ public class EscalaDocument
     [JsonPropertyName("musicas")]
     public List<EscalaMusica> Musicas { get; set; } = new();
 
+    [JsonPropertyName("rascunho")]
+    public bool Rascunho { get; set; } = true;
+
     [JsonPropertyName("criado_em")]
     public string CriadoEm { get; set; } = string.Empty;
 

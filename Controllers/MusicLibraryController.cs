@@ -4,6 +4,8 @@ using WorshipSearchWeb.Services;
 
 namespace WorshipSearchWeb.Controllers;
 
+public record SetStatusRequest(string FileName, string Status);
+
 public class MusicLibraryController : Controller
 {
     private readonly IMusicRepository _repository;
@@ -17,19 +19,36 @@ public class MusicLibraryController : Controller
         _llmKeyService = llmKeyService;
     }
 
-    public async Task<IActionResult> Index(string? q, int page = 1)
+    public async Task<IActionResult> Index(string? q, int page = 1, string? status = null)
     {
         const int pageSize = 50;
         page = Math.Max(1, page);
-        var query = new SearchQuery { Query = q ?? string.Empty, Page = page, PageSize = pageSize };
+        var query = new SearchQuery { Query = q ?? string.Empty, Page = page, PageSize = pageSize, StatusFilter = status };
         var results = await _searchEngine.SearchAsync(query);
-        var total   = await _searchEngine.CountAsync(new SearchQuery { Query = q ?? string.Empty });
+        var total   = await _searchEngine.CountAsync(new SearchQuery { Query = q ?? string.Empty, StatusFilter = status });
         ViewBag.Query        = q;
+        ViewBag.StatusFilter = status;
         ViewBag.CurrentPage  = page;
         ViewBag.PageSize     = pageSize;
         ViewBag.TotalCount   = total;
         ViewBag.TotalPages   = (int)Math.Ceiling((double)total / pageSize);
         return View(results);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SetStatus([FromBody] SetStatusRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.FileName) ||
+            (req.Status != "approved" && req.Status != "review"))
+            return BadRequest(new { error = "invalid" });
+
+        var docs = await _repository.LoadAllAsync();
+        var entry = docs.FirstOrDefault(x => x.FileName == req.FileName);
+        if (entry.Doc == null) return NotFound(new { error = "not found" });
+
+        entry.Doc.Status = req.Status;
+        await _repository.SaveAsync(entry.Doc);
+        return Json(new { success = true, status = req.Status });
     }
 
     [HttpDelete]
@@ -66,7 +85,7 @@ public class MusicLibraryController : Controller
     {
         var all = await _repository.LoadAllAsync();
         var total = all.Count;
-        var approved = all.Count(d => d.Doc.Approved);
+        var approved = all.Count(d => d.Doc.IsApproved);
         return Json(new { total, approved });
     }
 }

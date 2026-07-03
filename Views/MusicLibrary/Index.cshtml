@@ -1,20 +1,34 @@
 @model List<WorshipSearchWeb.Models.LibrarySearchResult>
 @{
     ViewData["Title"] = "Biblioteca";
-    var query       = ViewBag.Query as string ?? "";
-    var currentPage = (int)(ViewBag.CurrentPage ?? 1);
-    var totalPages  = (int)(ViewBag.TotalPages  ?? 1);
-    var totalCount  = (int)(ViewBag.TotalCount  ?? Model.Count);
+    var query        = ViewBag.Query as string ?? "";
+    var statusFilter = ViewBag.StatusFilter as string;
+    var currentPage  = (int)(ViewBag.CurrentPage ?? 1);
+    var totalPages   = (int)(ViewBag.TotalPages  ?? 1);
+    var totalCount   = (int)(ViewBag.TotalCount  ?? Model.Count);
 }
 
 <style>
-/* Hide non-essential table columns on mobile — keep Title, Status, Actions */
 @@media (max-width: 860px) {
     .lib-col-thumb  { display: none !important; }
     .lib-col-artist { display: none !important; }
     .lib-col-themes { display: none !important; }
     .lib-col-moods  { display: none !important; }
 }
+.lib-status-filter { display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px; }
+.lib-filter-btn {
+    padding:5px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;
+    border:1px solid var(--border);background:transparent;color:var(--text-muted);
+    transition:all .15s;
+}
+.lib-filter-btn.active,
+.lib-filter-btn:hover { background:var(--accent-soft);border-color:rgba(214,145,95,.4);color:var(--accent); }
+.lib-status-badge {
+    display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;
+}
+.lib-status-approved { background:rgba(60,180,90,.12);border:1px solid rgba(60,180,90,.25);color:#69d18a; }
+.lib-status-review   { background:rgba(200,160,60,.12);border:1px solid rgba(200,160,60,.22);color:#c9a857; }
+.lib-status-col      { width:90px;white-space:nowrap; }
 </style>
 
 <div style="max-width:1100px;margin:0 auto" class="ws-fade">
@@ -22,15 +36,9 @@
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:14px">
         <div>
             <div class="ws-page-title">Biblioteca</div>
-            <div class="ws-page-sub">
-                @totalCount música(s) analisadas e enriquecidas por IA
-            </div>
+            <div class="ws-page-sub">@totalCount música(s) no catálogo</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="@Url.Action("Index","Advanced")" class="ws-btn ws-btn-ghost ws-btn-sm">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
-                Enriquecer em lote
-            </a>
             <a href="@Url.Action("Index","MusicSearch")" class="ws-btn ws-btn-primary ws-btn-sm">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Adicionar música
@@ -47,23 +55,44 @@
         <button type="button" class="ws-tip-close" data-tip-close="library-scope" title="Não mostrar novamente">×</button>
     </div>
 
-    <form method="get" action="@Url.Action("Index","MusicLibrary")" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+    <form method="get" action="@Url.Action("Index","MusicLibrary")" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        @if (!string.IsNullOrWhiteSpace(statusFilter))
+        {
+            <input type="hidden" name="status" value="@statusFilter" />
+        }
         <div style="position:relative;flex:1;min-width:220px">
             <svg style="position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
-            <input type="text" name="q" value="@query" class="ws-input" style="padding-left:38px;padding-top:10px;padding-bottom:10px" placeholder="Buscar por nome da música, artista, tema, versículo…" />
+            <input type="text" name="q" value="@query" class="ws-input" style="padding-left:38px;padding-top:10px;padding-bottom:10px" placeholder="Buscar por nome, artista, tema…" />
         </div>
         <button class="ws-btn ws-btn-ghost ws-btn-sm" type="submit">Buscar</button>
         @if (!string.IsNullOrWhiteSpace(query))
         {
-            <a href="@Url.Action("Index","MusicLibrary")" class="ws-btn ws-btn-ghost ws-btn-sm">Limpar</a>
+            <a href="@Url.Action("Index","MusicLibrary", new { status = statusFilter })" class="ws-btn ws-btn-ghost ws-btn-sm">Limpar</a>
         }
     </form>
+
+    <div class="lib-status-filter">
+        <a href="@Url.Action("Index","MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query })"
+           class="lib-filter-btn @(statusFilter == null ? "active" : "")">
+            Todas
+        </a>
+        <a href="@Url.Action("Index","MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, status = "approved" })"
+           class="lib-filter-btn @(statusFilter == "approved" ? "active" : "")">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>
+            Aprovadas
+        </a>
+        <a href="@Url.Action("Index","MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, status = "review" })"
+           class="lib-filter-btn @(statusFilter == "review" ? "active" : "")">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:3px"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Revisar
+        </a>
+    </div>
 
     @if (!string.IsNullOrWhiteSpace(query))
     {
         <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:16px;display:flex;align-items:center;gap:6px">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
-            Buscando <strong style="color:var(--text-muted)">"@query"</strong> no catálogo local · músicas com título correspondente aparecem primeiro
+            Buscando <strong style="color:var(--text-muted)">"@query"</strong> no catálogo local
         </div>
     }
 
@@ -72,7 +101,17 @@
         <div style="text-align:center;padding:64px 0;color:var(--text-muted)">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" style="margin-bottom:16px;opacity:.5"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
             <div style="font-size:15px;margin-bottom:8px">Nenhuma música encontrada</div>
-            <div style="font-size:13.5px"><a href="@Url.Action("Index","MusicSearch")" style="color:var(--accent)">Adicione músicas</a> para começar.</div>
+            <div style="font-size:13.5px">
+                @if (statusFilter == "review")
+                {
+                    <span>Não há músicas aguardando revisão.</span>
+                }
+                else
+                {
+                    <a href="@Url.Action("Index","MusicSearch")" style="color:var(--accent)">Adicione músicas</a>
+                    <span> para começar.</span>
+                }
+            </div>
         </div>
     }
     else
@@ -87,14 +126,16 @@
                             <th class="lib-col-artist">Artista</th>
                             <th class="lib-col-themes">Temas</th>
                             <th class="lib-col-moods">Emoções</th>
-                            <th style="width:80px"></th>
+                            <th class="lib-status-col">Status</th>
+                            <th style="width:160px"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var item in Model)
                         {
                             var doc = item.Document;
-                            <tr>
+                            var isApproved = doc.Status == "approved";
+                            <tr data-filename="@item.FileName" data-status="@doc.Status">
                                 <td class="lib-col-thumb">
                                     @if (!string.IsNullOrWhiteSpace(doc.Metadata?.Image))
                                     {
@@ -127,8 +168,31 @@
                                         }
                                     </div>
                                 </td>
+                                <td class="lib-status-col">
+                                    <span class="lib-status-badge @(isApproved ? "lib-status-approved" : "lib-status-review") row-status-badge">
+                                        @(isApproved ? "Aprovada" : "Revisar")
+                                    </span>
+                                </td>
                                 <td>
-                                    <div style="display:flex;gap:6px;justify-content:flex-end">
+                                    <div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap">
+                                        @if (isApproved)
+                                        {
+                                            <button type="button" class="ws-btn ws-btn-sm status-btn"
+                                                data-filename="@item.FileName" data-target="review"
+                                                title="Marcar para revisão"
+                                                style="background:rgba(200,160,60,.12);border:1px solid rgba(200,160,60,.22);color:#c9a857;padding:4px 8px">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="ws-btn ws-btn-sm status-btn"
+                                                data-filename="@item.FileName" data-target="approved"
+                                                title="Aprovar"
+                                                style="background:rgba(60,180,90,.12);border:1px solid rgba(60,180,90,.25);color:#69d18a;padding:4px 8px">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            </button>
+                                        }
                                         <a href="@Url.Action("Edit","MusicEditor", new { fileName = item.FileName })" class="ws-btn ws-btn-ghost ws-btn-sm" title="Editar">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                         </a>
@@ -166,10 +230,10 @@
         @if (totalPages > 1)
         {
             var prevUrl = currentPage > 1
-                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, page = currentPage - 1 })
+                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, status = statusFilter, page = currentPage - 1 })
                 : null;
             var nextUrl = currentPage < totalPages
-                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, page = currentPage + 1 })
+                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, status = statusFilter, page = currentPage + 1 })
                 : null;
 
             <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:22px;flex-wrap:wrap">
@@ -224,6 +288,43 @@ function shareCard(title, artist, letras, cifra, ytId) {
         navigator.clipboard.writeText(text).catch(function(){});
     }
 }
+
+$(document).on('click', '.status-btn', function() {
+    var btn      = $(this);
+    var fileName = btn.data('filename');
+    var target   = btn.data('target');
+    var row      = btn.closest('tr');
+    var origHtml = btn.html();
+    btn.prop('disabled', true).html('<span class="ws-spinner" style="width:11px;height:11px;border-width:2px;display:inline-block;vertical-align:middle"></span>');
+    $.ajax({
+        url: '@Url.Action("SetStatus","MusicLibrary")',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ fileName: fileName, status: target }),
+        success: function(res) {
+            var isApproved = res.status === 'approved';
+            // Update badge
+            var badge = row.find('.row-status-badge');
+            badge.removeClass('lib-status-approved lib-status-review')
+                 .addClass(isApproved ? 'lib-status-approved' : 'lib-status-review')
+                 .text(isApproved ? 'Aprovada' : 'Revisar');
+            // Swap button icon and target
+            var newTarget = isApproved ? 'review' : 'approved';
+            var newTitle  = isApproved ? 'Marcar para revisão' : 'Aprovar';
+            var newStyle  = isApproved
+                ? 'background:rgba(200,160,60,.12);border:1px solid rgba(200,160,60,.22);color:#c9a857;padding:4px 8px'
+                : 'background:rgba(60,180,90,.12);border:1px solid rgba(60,180,90,.25);color:#69d18a;padding:4px 8px';
+            var newIcon   = isApproved
+                ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+                : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            btn.data('target', newTarget).attr('title', newTitle).attr('style', newStyle + ';').html(newIcon).prop('disabled', false);
+            row.data('status', res.status);
+        },
+        error: function() {
+            btn.html(origHtml).prop('disabled', false);
+        }
+    });
+});
 
 $('.delete-btn').click(function(){
     if (!confirm('Excluir esta música da biblioteca?')) return;

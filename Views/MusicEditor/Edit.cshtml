@@ -26,7 +26,7 @@
             }
             <button id="enrichBtn" class="ws-btn ws-btn-ghost ws-btn-sm">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
-                Re-enriquecer IA
+                Re-enriquecer
             </button>
             <button id="saveBtn" class="ws-btn ws-btn-primary ws-btn-sm">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -43,10 +43,7 @@
             <div class="ws-card" style="padding:20px;margin-bottom:14px">
                 <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Informações Básicas</div>
 
-                <div class="ws-form-group">
-                    <label class="ws-label">ID</label>
-                    <input type="text" id="f-id" class="ws-input" style="font-family:monospace;font-size:13px;padding:9px 12px" value="@Model.Id" />
-                </div>
+                <input type="hidden" id="f-id" value="@Model.Id" />
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                     <div class="ws-form-group">
                         <label class="ws-label">Título</label>
@@ -113,7 +110,7 @@
 
         <div>
             <div class="ws-card" style="padding:20px;margin-bottom:14px">
-                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Conteúdo IA</div>
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:14px">Conteúdo enriquecido</div>
                 <div class="ws-form-group">
                     <label class="ws-label">Resumo</label>
                     <textarea id="f-summary" class="ws-input" rows="2">@Model.Summary</textarea>

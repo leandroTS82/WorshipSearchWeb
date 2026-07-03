@@ -19,6 +19,13 @@ public class SearchHistoryController : Controller
         return View(entries);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Data()
+    {
+        var entries = await _history.LoadRecentAsync(5);
+        return Json(entries);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Log([FromBody] LogSearchRequest req)
     {

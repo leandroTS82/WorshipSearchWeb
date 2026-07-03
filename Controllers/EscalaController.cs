@@ -51,18 +51,22 @@ public class EscalaController : Controller
             m => !string.IsNullOrEmpty(m.FileName) && !string.IsNullOrEmpty(m.YoutubeUrl)))
         {
             var libDoc = await _musicRepo.LoadAsync(m.FileName);
-            if (libDoc != null && string.IsNullOrEmpty(libDoc.Metadata?.YoutubeUrl))
+            if (libDoc != null)
             {
                 libDoc.Metadata ??= new MusicMetadata();
-                libDoc.Metadata.YoutubeUrl = m.YoutubeUrl;
-                await _musicRepo.SaveAsync(libDoc);
+                // Only overwrite if the user provided a real URL (not one we auto-built from the ID)
+                if (string.IsNullOrEmpty(libDoc.Metadata.YoutubeUrl))
+                {
+                    libDoc.Metadata.YoutubeUrl = m.YoutubeUrl;
+                    await _musicRepo.SaveAsync(libDoc);
+                }
             }
         }
 
         return Json(new { success = true, id = doc.Id });
     }
 
-    [HttpDelete]
+    [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
         await _escala.DeleteAsync(id);
@@ -105,7 +109,8 @@ public class EscalaController : Controller
                 fileName   = x.FileName,
                 titulo     = x.Doc.Title,
                 artista    = x.Doc.Artist,
-                youtubeUrl = x.Doc.Metadata?.YoutubeUrl ?? string.Empty
+                youtubeUrl = x.Doc.Metadata?.YoutubeUrl ?? string.Empty,
+                youtubeId  = x.Doc.Metadata?.YoutubeId  ?? string.Empty
             });
 
         return Json(results);
@@ -133,15 +138,15 @@ public class EscalaController : Controller
     {
         var lines = new List<string>();
         var obs = (doc.Observacao ?? "").Trim();
-        lines.Add(string.IsNullOrEmpty(obs) ? "Bom dia pessoal, segue os louvores de" : obs);
-        lines.Add(string.Empty);
+        if (!string.IsNullOrEmpty(obs)) { lines.Add(obs); lines.Add(string.Empty); }
 
         if (!string.IsNullOrEmpty(doc.Data) && DateOnly.TryParse(doc.Data, out var date))
         {
             var dayNames = new[] { "Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira",
                                    "Quinta-feira", "Sexta-feira", "Sábado" };
             var dow = dayNames[(int)date.DayOfWeek];
-            lines.Add($"*{dow} dia {date:dd/MM} {doc.Titulo}*");
+            var titulo = (doc.Titulo ?? "").ToLowerInvariant();
+            lines.Add($"{dow} dia {date:dd/MM}{(string.IsNullOrEmpty(titulo) ? "" : " " + titulo)}");
             lines.Add(string.Empty);
         }
 
@@ -151,13 +156,15 @@ public class EscalaController : Controller
             var mom = (m.Momento ?? "").Trim();
             if (!string.IsNullOrEmpty(mom) && mom != currentMomento)
             {
+                if (currentMomento != null) lines.Add(string.Empty);
                 lines.Add(mom + ":");
                 currentMomento = mom;
             }
             var songLine = m.Titulo + " - " + m.Artista;
             if (!string.IsNullOrEmpty(m.Obs)) songLine += $" ({m.Obs})";
-            lines.Add(songLine);
-            if (!string.IsNullOrEmpty(m.YoutubeUrl)) lines.Add(m.YoutubeUrl);
+            var hasUrl = !string.IsNullOrEmpty(m.YoutubeUrl);
+            lines.Add(hasUrl ? songLine + ":" : songLine);
+            if (hasUrl) lines.Add(m.YoutubeUrl!);
             lines.Add(string.Empty);
         }
 

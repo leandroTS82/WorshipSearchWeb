@@ -11,6 +11,7 @@ public interface IEscalaRepository
     Task<List<EscalaDocument>> LoadAllAsync();
     Task<List<string>> GetMinistrosAsync();
     Task AddMinistroAsync(string nome);
+    Task RemoveMinistroAsync(string nome);
     string NewId();
 }
 
@@ -25,8 +26,18 @@ public class EscalaRepository : IEscalaRepository
 
     public EscalaRepository(IWebHostEnvironment env)
     {
-        _jsonFolder = Path.Combine(env.ContentRootPath, "json");
+        var rootJson = Path.Combine(env.ContentRootPath, "json");
+        Directory.CreateDirectory(rootJson);
+        _jsonFolder = Path.Combine(rootJson, "escalas");
         Directory.CreateDirectory(_jsonFolder);
+
+        // one-time migration: move old escala-*.json files from json/ to json/escalas/
+        foreach (var old in Directory.GetFiles(rootJson, "escala-*.json"))
+        {
+            var dest = Path.Combine(_jsonFolder, Path.GetFileName(old));
+            if (!File.Exists(dest)) File.Move(old, dest);
+            else File.Delete(old);
+        }
     }
 
     public string NewId() =>
@@ -94,6 +105,13 @@ public class EscalaRepository : IEscalaRepository
         if (list.Any(m => string.Equals(m, nome, StringComparison.OrdinalIgnoreCase))) return;
         list.Add(nome);
         list.Sort(StringComparer.CurrentCultureIgnoreCase);
+        await File.WriteAllTextAsync(MinistrosPath, JsonSerializer.Serialize(list, JsonOpts));
+    }
+
+    public async Task RemoveMinistroAsync(string nome)
+    {
+        var list = await GetMinistrosAsync();
+        list.RemoveAll(m => string.Equals(m, nome, StringComparison.OrdinalIgnoreCase));
         await File.WriteAllTextAsync(MinistrosPath, JsonSerializer.Serialize(list, JsonOpts));
     }
 }

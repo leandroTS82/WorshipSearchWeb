@@ -60,16 +60,16 @@ public class JsonSearchEngineTests
     [Fact]
     public void ScoreField_PrefixMatch_Returns60Percent()
     {
-        // "amor" starts with "amor" (prefix 4 chars) inside the word "amoroso"
-        var score = JsonSearchEngine.ScoreField("amoroso", "amor", 10);
+        // "louvor" prefix "louv" matches "louvador" but "louvador" does NOT contain "louvor" as substring
+        var score = JsonSearchEngine.ScoreField("louvador", "louvor", 10);
         Assert.Equal(6.0, score, precision: 5);
     }
 
     [Fact]
     public void ScoreField_FuzzyMatch_Returns40Percent()
     {
-        // "louvor" vs "louvos" — edit distance 1, both ≥ 5 chars
-        var score = JsonSearchEngine.ScoreField("louvos", "louvor", 10);
+        // "esprito" (7 chars) vs "espirito" (8 chars): edit distance 1, prefix "espr" ≠ "espi" → fuzzy only
+        var score = JsonSearchEngine.ScoreField("espirito", "esprito", 10);
         Assert.Equal(4.0, score, precision: 5);
     }
 
@@ -82,9 +82,12 @@ public class JsonSearchEngineTests
     [Fact]
     public void ScoreField_MultiWordTerm_SkipsPrefixAndFuzzy()
     {
-        // Multi-word terms like "isaias 41" must not match via prefix/fuzzy — only exact/substring
-        Assert.Equal(0, JsonSearchEngine.ScoreField("isaias", "isaias 41", 10));
-        Assert.Equal(10, JsonSearchEngine.ScoreField("isaias 41", "isaias 41", 10));
+        // Multi-word terms must not match via prefix/fuzzy — only exact/substring
+        Assert.Equal(0,  JsonSearchEngine.ScoreField("isaias", "isaias 41", 10));
+        // exact match returns weight * 2
+        Assert.Equal(20, JsonSearchEngine.ScoreField("isaias 41", "isaias 41", 10));
+        // substring match (field longer) returns weight * 1
+        Assert.Equal(10, JsonSearchEngine.ScoreField("isaias 41:10", "isaias 41", 10));
     }
 
     // ── ScoreList ─────────────────────────────────────────────────────────────
@@ -125,9 +128,9 @@ public class JsonSearchEngineTests
     [Fact]
     public void TitlePriorityBonus_AllFuzzyMatchTitle_Returns500()
     {
-        // "louvor" ≈ "louves" within edit distance 1 for len≥5
-        var terms = new[] { "louvor" };
-        var bonus = JsonSearchEngine.TitlePriorityBonus("Louves", terms, "louvor x");
+        // "esprito" (7) vs title "Espirito" → normalized "espirito" (8), edit distance 1, prefix differs
+        var terms = new[] { "esprito" };
+        var bonus = JsonSearchEngine.TitlePriorityBonus("Espirito", terms, "esprito x");
         Assert.Equal(500, bonus);
     }
 
@@ -195,12 +198,12 @@ public class JsonSearchEngineTests
     {
         var docs = new List<(string, MusicDocument)>
         {
-            ("a.json", new MusicDocument { Title = "Aprovada", Approved = true  }),
-            ("b.json", new MusicDocument { Title = "Pendente",  Approved = false }),
+            ("a.json", new MusicDocument { Title = "Aprovada", Status = "approved" }),
+            ("b.json", new MusicDocument { Title = "Pendente",  Status = "review"   }),
         };
         var (_, _, engine) = BuildEngine(docs);
 
-        var results = await engine.SearchAsync(new SearchQuery { Query = "", ApprovedOnly = true, Page = 1, PageSize = 20 });
+        var results = await engine.SearchAsync(new SearchQuery { Query = "", StatusFilter = "approved", Page = 1, PageSize = 20 });
         Assert.Single(results);
         Assert.Equal("Aprovada", results[0].Document.Title);
     }
@@ -292,7 +295,7 @@ public class JsonSearchEngineTests
             }
         };
 
-        var results = await engine.SearchByDocumentAsync(criteria, false);
+        var results = await engine.SearchByDocumentAsync(criteria, statusFilter: null);
         Assert.Single(results);
         Assert.Equal("Ofertório", results[0].Document.Title);
     }
@@ -325,7 +328,7 @@ public class JsonSearchEngineTests
             }
         };
 
-        var results = await engine.SearchByDocumentAsync(criteria, false);
+        var results = await engine.SearchByDocumentAsync(criteria, statusFilter: null);
         Assert.Single(results);
         Assert.Equal("Salmo 91", results[0].Document.Title);
     }
@@ -358,7 +361,7 @@ public class JsonSearchEngineTests
             new() { Input = "adoração", Type = "worship_moment", Tags = new SearchMetadata { WorshipMoments = new() { "adoração" } } },
         };
 
-        var results = await engine.SearchByDocumentAsync(criteria, false);
+        var results = await engine.SearchByDocumentAsync(criteria, statusFilter: null);
         Assert.Equal(2, results.Count);
         // "Louvor Profético" matches both criteria → more MatchedTerms → first
         Assert.Equal("Louvor Profético", results[0].Document.Title);

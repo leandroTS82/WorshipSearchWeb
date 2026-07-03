@@ -60,7 +60,7 @@ public class HomeController : Controller
             var classifyTasks = rawCriteria.Select(c => _classifier.ClassifyAsync(c));
             classifiedCriteria = (await Task.WhenAll(classifyTasks)).ToList();
 
-            results = await _searchEngine.SearchByDocumentAsync(classifiedCriteria);
+            results = await _searchEngine.SearchByDocumentAsync(classifiedCriteria, statusFilter: "approved");
 
             // Persist search document without blocking the response
             _ = SaveSearchDocumentAsync(q!, classifiedCriteria, results.Count);
@@ -70,7 +70,7 @@ public class HomeController : Controller
         else
         {
             // Single criterion or empty: fast path, no LLM upfront
-            var query = new SearchQuery { Query = q ?? string.Empty };
+            var query = new SearchQuery { Query = q ?? string.Empty, StatusFilter = "approved" };
             results = await _searchEngine.SearchAsync(query);
 
             // Fallback: LLM expansion when nothing found
@@ -79,7 +79,7 @@ public class HomeController : Controller
                 var (expandedQ, expandedDescription) = await _expansion.ExpandAsync(q);
                 if (!string.IsNullOrWhiteSpace(expandedQ))
                 {
-                    var expandedQuery = new SearchQuery { Query = expandedQ };
+                    var expandedQuery = new SearchQuery { Query = expandedQ, StatusFilter = "approved" };
                     var expandedResults = await _searchEngine.SearchAsync(expandedQuery);
                     if (expandedResults.Count > 0)
                     {
@@ -108,6 +108,7 @@ public class HomeController : Controller
                 var all = await _repository.LoadAllAsync();
                 var popularityCounts = await _popularity.LoadAsync();
                 var top = all
+                    .Where(x => x.Doc.IsApproved)
                     .Select(x => new
                     {
                         x.FileName,

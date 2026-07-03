@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Moq;
 using WorshipSearchWeb.Models;
 using WorshipSearchWeb.Prompts;
@@ -111,18 +112,23 @@ public class MusicEnrichmentServiceTests
     private static (Mock<IGroqService>, Mock<IPromptBuilder>, Mock<IAppLogger>, MusicEnrichmentService)
         BuildService(string groqResponse)
     {
-        var groqMock   = new Mock<IGroqService>();
+        var groqMock    = new Mock<IGroqService>();
         var builderMock = new Mock<IPromptBuilder>();
-        var loggerMock = new Mock<ILogger<MusicEnrichmentService>>();
-        var appLogger  = new Mock<IAppLogger>();
+        var loggerMock  = new Mock<ILogger<MusicEnrichmentService>>();
+        var appLogger   = new Mock<IAppLogger>();
 
-        groqMock.Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(groqResponse);
-        builderMock.Setup(b => b.BuildParagraphPrompt(It.IsAny<string>(), It.IsAny<string>(),
+        groqMock
+            .Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync((groqResponse, "test-key"));
+
+        builderMock
+            .Setup(b => b.BuildParagraphPrompt(It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<SearchMetadata>()))
             .Returns("mocked_paragraph_prompt");
-        builderMock.Setup(b => b.BuildSummaryPrompt(It.IsAny<MusicDocument>()))
+        builderMock
+            .Setup(b => b.BuildSummaryPrompt(It.IsAny<MusicDocument>()))
             .Returns("mocked_summary_prompt");
+
         appLogger.Setup(a => a.InfoAsync(It.IsAny<string>(), It.IsAny<object>()))
             .Returns(Task.CompletedTask);
         appLogger.Setup(a => a.WarnAsync(It.IsAny<string>(), It.IsAny<object>()))
@@ -142,12 +148,12 @@ public class MusicEnrichmentServiceTests
         var response = """{"themes":["louvor","adoração"],"moods":["alegria"],"keywords":["glória"]}""";
         var (_, _, _, svc) = BuildService(response);
 
-        var result = await svc.EnrichParagraphAsync("letra", "Título", "Artista", new SearchMetadata());
+        var (tags, _) = await svc.EnrichParagraphAsync("letra", "Título", "Artista", new SearchMetadata());
 
-        Assert.Contains("louvor",  result.Themes);
-        Assert.Contains("adoração",result.Themes);
-        Assert.Contains("alegria", result.Moods);
-        Assert.Contains("glória",  result.Keywords);
+        Assert.Contains("louvor",   tags.Themes);
+        Assert.Contains("adoração", tags.Themes);
+        Assert.Contains("alegria",  tags.Moods);
+        Assert.Contains("glória",   tags.Keywords);
     }
 
     [Fact]
@@ -169,9 +175,11 @@ public class MusicEnrichmentServiceTests
         var loggerMock  = new Mock<ILogger<MusicEnrichmentService>>();
         var appLogger   = new Mock<IAppLogger>();
 
-        groqMock.Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>()))
+        groqMock
+            .Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
             .ThrowsAsync(new InvalidOperationException("Groq down"));
-        builderMock.Setup(b => b.BuildParagraphPrompt(It.IsAny<string>(), It.IsAny<string>(),
+        builderMock
+            .Setup(b => b.BuildParagraphPrompt(It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<SearchMetadata>()))
             .Returns("prompt");
         appLogger.Setup(a => a.ErrorAsync(It.IsAny<string>(), It.IsAny<Exception>(), It.IsAny<object>()))
@@ -206,7 +214,7 @@ public class MusicEnrichmentServiceTests
         var (_, _, _, svc) = BuildService(response);
         var doc = new MusicDocument { Title = "T", Artist = "A", Lyrics = "L" };
 
-        var (summary, explanation, practical, style, energy, occasion, moments) =
+        var (summary, explanation, practical, style, energy, occasion, moments, _) =
             await svc.EnrichSummaryAsync(doc);
 
         Assert.Equal("Música de louvor",    summary);
@@ -238,7 +246,7 @@ public class MusicEnrichmentServiceTests
         var (_, _, _, svc) = BuildService(response);
         var doc = new MusicDocument { Title = "T", Artist = "A" };
 
-        var (summary, _, _, _, _, _, _) = await svc.EnrichSummaryAsync(doc);
+        var (summary, _, _, _, _, _, _, _) = await svc.EnrichSummaryAsync(doc);
         Assert.Equal("Hino de graça", summary);
     }
 
@@ -248,7 +256,7 @@ public class MusicEnrichmentServiceTests
         var (_, _, appLogger, svc) = BuildService("Não consegui gerar um JSON válido.");
         var doc = new MusicDocument { Title = "T", Artist = "A" };
 
-        var (summary, explanation, practical, style, energy, occasion, moments) =
+        var (summary, explanation, practical, style, energy, occasion, moments, _) =
             await svc.EnrichSummaryAsync(doc);
 
         Assert.Equal(string.Empty, summary);
@@ -279,9 +287,11 @@ public class MusicEnrichmentServiceTests
         var loggerMock  = new Mock<ILogger<MusicEnrichmentService>>();
         var appLogger   = new Mock<IAppLogger>();
 
-        groqMock.Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>()))
+        groqMock
+            .Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
             .ThrowsAsync(new HttpRequestException("timeout"));
-        builderMock.Setup(b => b.BuildSummaryPrompt(It.IsAny<MusicDocument>()))
+        builderMock
+            .Setup(b => b.BuildSummaryPrompt(It.IsAny<MusicDocument>()))
             .Returns("prompt");
         appLogger.Setup(a => a.ErrorAsync(It.IsAny<string>(), It.IsAny<Exception>(), It.IsAny<object>()))
             .Returns(Task.CompletedTask);
@@ -315,7 +325,7 @@ public class MusicEnrichmentServiceTests
         var (_, _, _, svc) = BuildService(response);
         var doc = new MusicDocument { Title = "T", Artist = "A" };
 
-        var (summary, _, _, style, _, _, moments) = await svc.EnrichSummaryAsync(doc);
+        var (summary, _, _, style, _, _, moments, _) = await svc.EnrichSummaryAsync(doc);
         Assert.Equal("Belo hino", summary);
         Assert.Equal("clássico",  style);
         Assert.Contains("meditação", moments);

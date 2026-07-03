@@ -21,7 +21,7 @@ public class MusicJsonGenerator : IMusicJsonGenerator
             Album = string.Empty,
             Language = "pt-BR",
             Genre = parsed.Genre,
-            Approved = false,
+            Status = "review",
             Lyrics = parsed.Lyrics,
             Metadata = new MusicMetadata
             {

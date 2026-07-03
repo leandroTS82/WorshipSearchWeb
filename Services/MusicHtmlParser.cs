@@ -61,7 +61,7 @@ public class MusicHtmlParser : IMusicHtmlParser
             var artistPart = parts[1];
             if (artistPart.Contains(" | "))
                 artistPart = artistPart.Split(" | ")[0];
-            result.Artist = artistPart.Trim();
+            result.Artist = StripLetrasSuffix(artistPart.Trim());
         }
 
         // Find lyrics div — ordered from most to least specific
@@ -124,6 +124,12 @@ public class MusicHtmlParser : IMusicHtmlParser
         }
 
         return sb.ToString().Trim();
+    }
+
+    internal static string StripLetrasSuffix(string artist)
+    {
+        // Remove " - LETRAS.MUS.BR" (any case) that letras.mus.br appends to some og:title values
+        return Regex.Replace(artist, @"\s*-\s*LETRAS\.MUS\.BR\s*$", "", RegexOptions.IgnoreCase).Trim();
     }
 
     private static string? GetMetaContent(HtmlDocument doc, string nameOrProperty)

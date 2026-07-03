@@ -29,8 +29,8 @@
 
 <style>
 .ws-tag-box {
-    background: var(--bg-input);
-    border: 1px solid #38301f;
+    background: rgba(214,145,95,0.07);
+    border: 1px solid rgba(214,145,95,0.32);
     border-radius: 14px;
     padding: 10px 14px;
     display: flex;
@@ -39,9 +39,12 @@
     align-items: center;
     min-height: 54px;
     cursor: text;
-    transition: border-color .15s;
+    transition: border-color .15s, box-shadow .15s;
 }
-.ws-tag-box:focus-within { border-color: var(--accent-line); }
+.ws-tag-box:focus-within {
+    border-color: rgba(214,145,95,0.75);
+    box-shadow: 0 0 0 3px rgba(214,145,95,0.1);
+}
 
 .ws-active-tag {
     display: inline-flex;
@@ -74,7 +77,7 @@
     border: none;
     background: none;
     outline: none;
-    color: var(--text);
+    color: #d6a870;
     font-family: inherit;
     font-size: 15px;
     flex: 1;
@@ -231,11 +234,11 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             @if (!string.IsNullOrWhiteSpace(llmDesc))
             {
-                <span>Nenhum resultado direto — IA ampliou a busca para <strong>@llmDesc</strong>.</span>
+                <span>Nenhum resultado direto — busca ampliada para <strong>@llmDesc</strong>.</span>
             }
             else
             {
-                <span>Nenhum resultado direto — busca ampliada por IA com termos relacionados.</span>
+                <span>Nenhum resultado direto — busca ampliada com termos relacionados.</span>
             }
         </div>
     }

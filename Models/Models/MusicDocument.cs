@@ -22,8 +22,11 @@ public class MusicDocument
     [JsonPropertyName("genre")]
     public string Genre { get; set; } = string.Empty;
 
-    [JsonPropertyName("approved")]
-    public bool Approved { get; set; } = false;
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "review";
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsApproved => Status == "approved";
 
     [JsonPropertyName("search")]
     public SearchMetadata Search { get; set; } = new();

@@ -8,7 +8,7 @@ public interface IJsonSearchEngine
 {
     Task<List<LibrarySearchResult>> SearchAsync(SearchQuery query);
     Task<int> CountAsync(SearchQuery query);
-    Task<List<LibrarySearchResult>> SearchByDocumentAsync(List<SearchCriterion> criteria);
+    Task<List<LibrarySearchResult>> SearchByDocumentAsync(List<SearchCriterion> criteria, string? statusFilter = "approved");
 }
 
 public class JsonSearchEngine : IJsonSearchEngine
@@ -71,6 +71,7 @@ public class JsonSearchEngine : IJsonSearchEngine
         foreach (var (fileName, doc) in all)
         {
             if (excluded.Count > 0 && IsExcluded(doc, excluded)) continue;
+            if (query.StatusFilter != null && doc.Status != query.StatusFilter) continue;
 
             double score;
             int matchedTerms;
@@ -102,7 +103,7 @@ public class JsonSearchEngine : IJsonSearchEngine
             .ToList();
     }
 
-    public async Task<List<LibrarySearchResult>> SearchByDocumentAsync(List<SearchCriterion> criteria)
+    public async Task<List<LibrarySearchResult>> SearchByDocumentAsync(List<SearchCriterion> criteria, string? statusFilter = "approved")
     {
         var all = await _repository.LoadAllAsync();
         var restrictions = await _restrictions.LoadAsync();
@@ -113,6 +114,7 @@ public class JsonSearchEngine : IJsonSearchEngine
         foreach (var (fileName, doc) in all)
         {
             if (excluded.Count > 0 && IsExcluded(doc, excluded)) continue;
+            if (statusFilter != null && doc.Status != statusFilter) continue;
 
             double totalScore = 0;
             var matchedCriteria = new List<string>();

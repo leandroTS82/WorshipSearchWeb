@@ -112,15 +112,73 @@
                     <div class="adv-link-desc">Rodar EnrichAll em produção</div>
                 </div>
             </a>
-            <a href="@Url.Action("Index","Logs")" class="adv-link-tile">
+            <a href="@Url.Action("Index","SearchHistory")" class="adv-link-tile">
                 <div class="adv-link-icon">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 15 15"/></svg>
                 </div>
                 <div>
-                    <div class="adv-link-label">Histórico / Logs</div>
+                    <div class="adv-link-label">Histórico</div>
+                    <div class="adv-link-desc">Buscas realizadas</div>
+                </div>
+            </a>
+            <a href="@Url.Action("Index","Logs")" class="adv-link-tile">
+                <div class="adv-link-icon">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div>
+                    <div class="adv-link-label">Logs</div>
                     <div class="adv-link-desc">Eventos e erros</div>
                 </div>
             </a>
+        </div>
+    </div>
+
+    <!-- ── Histórico de Pesquisas ────────────────────────────────────── -->
+    <div class="ws-card adv-tool-card">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:500;margin-bottom:3px">Histórico de Pesquisas</div>
+                <div style="font-size:13px;color:var(--text-muted)">Consultas realizadas recentemente no sistema.</div>
+            </div>
+            <button class="adv-collapse-btn" onclick="toggleSection('hist-body','hist-chevron')">
+                <svg id="hist-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="transition:transform .2s;transform:rotate(-90deg)"><polyline points="6 9 12 15 18 9"/></svg>
+                Expandir
+            </button>
+        </div>
+        <div id="hist-body" class="adv-collapse-body collapsed">
+            <div style="padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <span style="font-size:13px;color:var(--text-muted)">Últimas buscas registradas.</span>
+                <a href="@Url.Action("Index","SearchHistory")" class="ws-btn ws-btn-ghost ws-btn-sm">Ver histórico completo →</a>
+            </div>
+            <div id="hist-content" style="padding:0 24px 16px">
+                <div style="font-size:13px;color:var(--text-dim)">Carregando…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Logs do Sistema ────────────────────────────────────────────── -->
+    <div class="ws-card adv-tool-card">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:500;margin-bottom:3px">Logs do Sistema</div>
+                <div style="font-size:13px;color:var(--text-muted)">Eventos estruturados de enriquecimento e pesquisa.</div>
+            </div>
+            <button class="adv-collapse-btn" onclick="toggleSection('logs-body','logs-chevron')">
+                <svg id="logs-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="transition:transform .2s;transform:rotate(-90deg)"><polyline points="6 9 12 15 18 9"/></svg>
+                Expandir
+            </button>
+        </div>
+        <div id="logs-body" class="adv-collapse-body collapsed">
+            <div style="padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <span style="font-size:13px;color:var(--text-muted)">Últimas 3 entradas. <a href="@Url.Action("Index","Logs")" style="color:var(--accent)">Ver todos →</a></span>
+                <a href="@Url.Action("Download","Logs")" class="ws-btn ws-btn-ghost ws-btn-sm">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Baixar log
+                </a>
+            </div>
+            <div id="logs-content" style="padding:0 24px 16px">
+                <div style="font-size:13px;color:var(--text-dim)">Carregando…</div>
+            </div>
         </div>
     </div>
 
@@ -173,6 +231,38 @@
                     <span id="cifra-report-status" style="margin-left:8px;font-size:12px;color:var(--text-muted)"></span>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ── Ministros ────────────────────────────────────────────────────── -->
+    <div class="ws-card adv-tool-card">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:500;margin-bottom:3px">Ministros</div>
+                <div style="font-size:13px;color:var(--text-muted)">Nomes disponíveis como chips rápidos no formulário de escala.</div>
+            </div>
+            <button class="adv-collapse-btn" onclick="toggleSection('min-body','min-chevron')">
+                <svg id="min-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="transition:transform .2s;transform:rotate(0deg)"><polyline points="6 9 12 15 18 9"/></svg>
+                Recolher
+            </button>
+        </div>
+        <div id="min-body" class="adv-collapse-body">
+            <div style="padding:16px 24px 8px">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="min-chips-list">
+                    <span style="font-size:13px;color:var(--text-dim)">Carregando…</span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <input id="min-input" type="text" class="ws-input" style="max-width:260px;font-size:13px;padding:8px 12px"
+                           placeholder="Nome do ministro…" autocomplete="off"
+                           onkeydown="if(event.key==='Enter'){addMinistro();event.preventDefault();}">
+                    <button class="ws-btn ws-btn-primary ws-btn-sm" onclick="addMinistro()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Adicionar
+                    </button>
+                </div>
+                <div id="min-msg" style="font-size:12px;margin-top:8px;color:var(--text-dim);min-height:16px"></div>
+            </div>
+            <div style="height:12px"></div>
         </div>
     </div>
 
@@ -232,7 +322,49 @@
 
 @section Scripts {
 <script>
+// ── Ministros ─────────────────────────────────────────────────────────────
+var minAddUrl    = '@Url.Action("Add","Ministros")';
+var minRemoveUrl = '@Url.Action("Remove","Ministros")';
+var minGetUrl    = '@Url.Action("Get","Ministros")';
+
+function renderMinChips(items) {
+    var el = document.getElementById('min-chips-list');
+    if (!items || !items.length) {
+        el.innerHTML = '<span style="font-size:13px;color:var(--text-dim)">Nenhum ministro cadastrado.</span>';
+        return;
+    }
+    el.innerHTML = items.map(function(m) {
+        return '<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--accent-line);font-size:13px;color:var(--accent)">'
+            + esc(m)
+            + '<button type="button" onclick="removeMinistro(\'' + m.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Remover" style="background:none;border:none;cursor:pointer;color:var(--accent);line-height:1;padding:0;font-size:15px;opacity:.7">&times;</button>'
+            + '</span>';
+    }).join('');
+}
+
+async function addMinistro() {
+    var inp = document.getElementById('min-input');
+    var nome = inp.value.trim();
+    if (!nome) { document.getElementById('min-msg').textContent = 'Digite um nome.'; return; }
+    document.getElementById('min-msg').textContent = '';
+    try {
+        var r = await fetch(minAddUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nome: nome}) });
+        var data = await r.json();
+        if (data.success) { inp.value = ''; renderMinChips(data.items); }
+    } catch(e) { document.getElementById('min-msg').textContent = 'Erro ao adicionar.'; }
+}
+
+async function removeMinistro(nome) {
+    try {
+        var r = await fetch(minRemoveUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nome: nome}) });
+        var data = await r.json();
+        if (data.success) renderMinChips(data.items);
+    } catch(e) {}
+}
+
+fetch(minGetUrl).then(function(r){ return r.ok ? r.json() : []; }).then(renderMinChips).catch(function(){});
+
 // ── Toggle collapse ───────────────────────────────────────────────────────
+var _histLoaded = false, _logsLoaded = false;
 function toggleSection(bodyId, chevronId) {
     var body = document.getElementById(bodyId);
     var chev = document.getElementById(chevronId);
@@ -240,6 +372,53 @@ function toggleSection(bodyId, chevronId) {
     chev.style.transform = isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
     var btn = chev.closest('.adv-collapse-btn');
     if (btn) btn.lastChild.textContent = isCollapsed ? ' Expandir' : ' Recolher';
+
+    if (!isCollapsed) {
+        if (bodyId === 'hist-body' && !_histLoaded) { _histLoaded = true; loadHistorico(); }
+        if (bodyId === 'logs-body' && !_logsLoaded) { _logsLoaded = true; loadLogs(); }
+    }
+}
+
+function loadHistorico() {
+    fetch('@Url.Action("Data","SearchHistory")')
+        .then(function(r){ return r.ok ? r.json() : []; })
+        .then(function(data) {
+            var el = document.getElementById('hist-content');
+            if (!data || data.length === 0) { el.innerHTML = '<div style="font-size:13px;color:var(--text-dim)">Nenhum histórico registrado.</div>'; return; }
+            var html = '<div style="display:flex;flex-direction:column;gap:6px">';
+            data.slice(0,5).forEach(function(h) {
+                html += '<div style="font-size:13px;padding:6px 10px;background:var(--bg-input);border-radius:8px;border:1px solid var(--border-card);display:flex;align-items:center;gap:8px">' +
+                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>' +
+                    '<span style="color:var(--text-sub)">' + esc(h.query || h) + '</span>' +
+                    (h.at ? '<span style="font-size:11px;color:var(--text-dim);margin-left:auto">' + esc(h.at) + '</span>' : '') +
+                    '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        })
+        .catch(function(){ document.getElementById('hist-content').innerHTML = '<div style="font-size:13px;color:var(--text-dim)">Não foi possível carregar o histórico.</div>'; });
+}
+
+function loadLogs() {
+    fetch('@Url.Action("Recent","Logs")')
+        .then(function(r){ return r.ok ? r.json() : []; })
+        .then(function(data) {
+            var el = document.getElementById('logs-content');
+            if (!data || data.length === 0) { el.innerHTML = '<div style="font-size:13px;color:var(--text-dim)">Nenhum log registrado.</div>'; return; }
+            var html = '<div style="display:flex;flex-direction:column;gap:4px">';
+            data.forEach(function(e) {
+                var lv = e.level || 'info';
+                var color = lv === 'error' ? '#ff8a80' : lv === 'warn' ? '#c9a857' : 'var(--text-sub)';
+                html += '<div style="font-size:12px;padding:6px 10px;background:var(--bg-input);border-radius:8px;border:1px solid var(--border-card);display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+                    '<span style="font-family:monospace;color:var(--text-dim);white-space:nowrap;font-size:11px">' + esc(e.ts || '') + '</span>' +
+                    '<span style="color:' + color + ';font-weight:600;font-size:11px;text-transform:uppercase">' + esc(lv) + '</span>' +
+                    '<span style="font-family:monospace;color:var(--text-muted)">' + esc(e.evt || '') + '</span>' +
+                    '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        })
+        .catch(function(){ document.getElementById('logs-content').innerHTML = '<div style="font-size:13px;color:var(--text-dim)">Não foi possível carregar os logs.</div>'; });
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────

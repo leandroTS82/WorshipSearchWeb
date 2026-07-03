@@ -16,4 +16,19 @@
     </AssemblyAttribute>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="WorshipSearchWeb.Tests/**" />
+    <Content Remove="WorshipSearchWeb.Tests/**" />
+    <EmbeddedResource Remove="WorshipSearchWeb.Tests/**" />
+    <None Remove="WorshipSearchWeb.Tests/**" />
+  </ItemGroup>
+
+  <!-- Exclude runtime data folders and demo scripts from publish output -->
+  <ItemGroup>
+    <Content Remove="json/**" />
+    <Content Remove="scriptsDemonstracao/**" />
+    <None Remove="json/**" />
+    <None Remove="scriptsDemonstracao/**" />
+  </ItemGroup>
+
 </Project>

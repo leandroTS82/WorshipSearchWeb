@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Moq;
 using WorshipSearchWeb.Services;
 using Xunit;
@@ -21,9 +22,9 @@ public class SearchIndexClassifierTests
     // ── ApplyLocalOverride — chapter:verse pattern ───────────────────────────
 
     [Theory]
-    [InlineData("João 3:16",   "general",  "biblical_reference")]
-    [InlineData("Isaías 41:10","general",  "biblical_reference")]
-    [InlineData("Salmo 23:1",  "theme",    "biblical_reference")]
+    [InlineData("João 3:16",    "general", "biblical_reference")]
+    [InlineData("Isaías 41:10", "general", "biblical_reference")]
+    [InlineData("Salmo 23:1",   "theme",   "biblical_reference")]
     [InlineData("1 Samuel 3:10","general", "biblical_reference")]
     public void ApplyLocalOverride_ChapterVerse_AlwaysBiblical(string input, string llmType, string expected)
     {
@@ -33,11 +34,11 @@ public class SearchIndexClassifierTests
     // ── ApplyLocalOverride — book+chapter pattern ────────────────────────────
 
     [Theory]
-    [InlineData("Salmo 91",    "general",  "biblical_reference")]
-    [InlineData("Isaías 41",   "theme",    "biblical_reference")]
-    [InlineData("1 Samuel 3",  "general",  "biblical_reference")]
-    [InlineData("2 Reis 4",    "general",  "biblical_reference")]
-    [InlineData("Apocalipse 1","general",  "biblical_reference")]
+    [InlineData("Salmo 91",     "general", "biblical_reference")]
+    [InlineData("Isaías 41",    "theme",   "biblical_reference")]
+    [InlineData("1 Samuel 3",   "general", "biblical_reference")]
+    [InlineData("2 Reis 4",     "general", "biblical_reference")]
+    [InlineData("Apocalipse 1", "general", "biblical_reference")]
     public void ApplyLocalOverride_BookPlusChapter_AlwaysBiblical(string input, string llmType, string expected)
     {
         Assert.Equal(expected, SearchIndexClassifierService.ApplyLocalOverride(input, llmType));
@@ -46,11 +47,11 @@ public class SearchIndexClassifierTests
     // ── ApplyLocalOverride — LLM result passes through for non-biblical ──────
 
     [Theory]
-    [InlineData("adoração",    "mood",    "mood")]
-    [InlineData("louvor",      "theme",   "theme")]
-    [InlineData("comunhão",    "context", "context")]
+    [InlineData("adoração",    "mood",           "mood")]
+    [InlineData("louvor",      "theme",          "theme")]
+    [InlineData("comunhão",    "context",        "context")]
     [InlineData("ofertório",   "worship_moment", "worship_moment")]
-    [InlineData("graça divina","general", "general")]
+    [InlineData("graça divina","general",        "general")]
     public void ApplyLocalOverride_NonBiblical_ReturnsLlmType(string input, string llmType, string expected)
     {
         Assert.Equal(expected, SearchIndexClassifierService.ApplyLocalOverride(input, llmType));
@@ -59,10 +60,10 @@ public class SearchIndexClassifierTests
     // ── ApplyLocalOverride — false positive guard ────────────────────────────
 
     [Theory]
-    [InlineData("1 amor",      "general")] // "1" + word that isn't a book
-    [InlineData("Samuel",      "general")] // book name alone, no number
-    [InlineData("Salmo",       "theme")]   // no chapter number after book
-    [InlineData("3 palavras",  "general")] // number + word but not a book
+    [InlineData("1 amor",     "general")] // "1" + word that isn't a book
+    [InlineData("Samuel",     "general")] // book name alone, no number
+    [InlineData("Salmo",      "theme")]   // no chapter number after book
+    [InlineData("3 palavras", "general")] // number + word but not a book
     public void ApplyLocalOverride_FalsePositives_DoNotOverride(string input, string llmType)
     {
         Assert.Equal(llmType, SearchIndexClassifierService.ApplyLocalOverride(input, llmType));
@@ -73,10 +74,10 @@ public class SearchIndexClassifierTests
     [Fact]
     public async Task ClassifyAsync_ChapterVerse_OverridesLlmType()
     {
-        // LLM returns "theme" but local rule must override to "biblical_reference"
         var groqMock = new Mock<IGroqService>();
-        groqMock.Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync("""{"type":"theme","tags":{}}""");
+        groqMock
+            .Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(("""{"type":"theme","tags":{}}""", "test-key"));
 
         var loggerMock = new Mock<ILogger<SearchIndexClassifierService>>();
         var svc = new SearchIndexClassifierService(groqMock.Object, loggerMock.Object);
@@ -89,8 +90,9 @@ public class SearchIndexClassifierTests
     public async Task ClassifyAsync_GeneralTerm_ParsesLlmTags()
     {
         var groqMock = new Mock<IGroqService>();
-        groqMock.Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync("""
+        groqMock
+            .Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(("""
             {
               "type": "mood",
               "tags": {
@@ -98,7 +100,7 @@ public class SearchIndexClassifierTests
                 "themes": ["louvor"]
               }
             }
-            """);
+            """, "test-key"));
 
         var loggerMock = new Mock<ILogger<SearchIndexClassifierService>>();
         var svc = new SearchIndexClassifierService(groqMock.Object, loggerMock.Object);
@@ -114,7 +116,8 @@ public class SearchIndexClassifierTests
     public async Task ClassifyAsync_LlmFails_FallsBackToGeneral()
     {
         var groqMock = new Mock<IGroqService>();
-        groqMock.Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>()))
+        groqMock
+            .Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
             .ThrowsAsync(new HttpRequestException("Network error"));
 
         var loggerMock = new Mock<ILogger<SearchIndexClassifierService>>();
@@ -128,10 +131,10 @@ public class SearchIndexClassifierTests
     [Fact]
     public async Task ClassifyAsync_BookChapterInput_SeedsBiblicalReferenceTag()
     {
-        // When LLM doesn't populate BiblicalReferences, classifier seeds it from the raw input
         var groqMock = new Mock<IGroqService>();
-        groqMock.Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync("""{"type":"theme","tags":{"themes":["salmos"]}}""");
+        groqMock
+            .Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(("""{"type":"theme","tags":{"themes":["salmos"]}}""", "test-key"));
 
         var loggerMock = new Mock<ILogger<SearchIndexClassifierService>>();
         var svc = new SearchIndexClassifierService(groqMock.Object, loggerMock.Object);
@@ -146,8 +149,9 @@ public class SearchIndexClassifierTests
     public async Task ClassifyAsync_WorshipMomentType_PopulatesCorrectly()
     {
         var groqMock = new Mock<IGroqService>();
-        groqMock.Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync("""
+        groqMock
+            .Setup(g => g.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(("""
             {
               "type": "worship_moment",
               "tags": {
@@ -155,7 +159,7 @@ public class SearchIndexClassifierTests
                 "contexts": ["culto dominical"]
               }
             }
-            """);
+            """, "test-key"));
 
         var loggerMock = new Mock<ILogger<SearchIndexClassifierService>>();
         var svc = new SearchIndexClassifierService(groqMock.Object, loggerMock.Object);

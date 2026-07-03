@@ -6,7 +6,6 @@
     var gaps = searches.Where(e => e.ResultCount == 0).ToList();
     var lowResults = searches.Where(e => e.ResultCount > 0 && e.ResultCount <= 2).ToList();
 
-    // Aggregate: group by query, keep latest + min result count
     var aggregated = searches
         .GroupBy(e => e.Query)
         .Select(g => new {
@@ -20,12 +19,39 @@
         .ToList();
 }
 
+<style>
+.hist-row { border-bottom:1px solid var(--border-card); }
+.hist-row:last-child { border-bottom:none; }
+.hist-row:hover { background:rgba(255,255,255,.015); }
+
+.page-btn {
+    min-width:32px; height:32px; padding:0 8px;
+    border-radius:7px; border:1px solid var(--border-card);
+    background:none; color:var(--text-muted); font-size:13px;
+    cursor:pointer; font-family:inherit; transition:background .12s, color .12s;
+    display:inline-flex; align-items:center; justify-content:center;
+}
+.page-btn:hover:not(:disabled) { background:rgba(255,255,255,.05); color:var(--text); }
+.page-btn.active { background:var(--accent-soft); border-color:var(--accent-line); color:var(--accent); font-weight:600; }
+.page-btn:disabled { opacity:.3; cursor:default; }
+
+@@media (max-width:640px) {
+    .hist-table-wrap { display:none; }
+    .hist-cards { display:block; }
+    .hist-stats-grid { grid-template-columns:1fr 1fr !important; }
+    .hist-stats-grid > div:last-child { grid-column:1/-1; }
+}
+@@media (min-width:641px) {
+    .hist-cards { display:none; }
+}
+</style>
+
 <div style="max-width:900px;margin:0 auto" class="ws-fade">
 
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:12px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:12px;flex-wrap:wrap">
         <div>
             <div class="ws-page-title">Histórico de Buscas</div>
-            <div class="ws-page-sub">Consultas realizadas na biblioteca de louvores. Gaps indicam onde falta indexação.</div>
+            <div class="ws-page-sub">Consultas realizadas na biblioteca. Gaps indicam onde falta indexação.</div>
         </div>
         <button id="clearBtn" class="ws-btn ws-btn-ghost ws-btn-sm" style="flex-shrink:0">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -33,35 +59,35 @@
         </button>
     </div>
 
-    <!-- Stats strip -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
-        <div class="ws-card" style="padding:18px 20px">
-            <div style="font-size:26px;font-weight:600;color:var(--text)">@aggregated.Count</div>
-            <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">Queries únicas</div>
+    <!-- Stats -->
+    <div class="hist-stats-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
+        <div class="ws-card" style="padding:16px 18px">
+            <div style="font-size:24px;font-weight:600;color:var(--text)">@aggregated.Count</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Queries únicas</div>
         </div>
-        <div class="ws-card" style="padding:18px 20px;border-color:rgba(214,100,80,.3)">
-            <div style="font-size:26px;font-weight:600;color:#e89080">@gaps.Select(e=>e.Query).Distinct().Count()</div>
-            <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">Sem resultado (gaps)</div>
+        <div class="ws-card" style="padding:16px 18px;border-color:rgba(214,100,80,.3)">
+            <div style="font-size:24px;font-weight:600;color:#e89080">@gaps.Select(e=>e.Query).Distinct().Count()</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Sem resultado</div>
         </div>
-        <div class="ws-card" style="padding:18px 20px;border-color:rgba(200,160,50,.3)">
-            <div style="font-size:26px;font-weight:600;color:#c9a857">@lowResults.Select(e=>e.Query).Distinct().Count()</div>
-            <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">Resultado baixo (≤ 2)</div>
+        <div class="ws-card" style="padding:16px 18px;border-color:rgba(200,160,50,.3)">
+            <div style="font-size:24px;font-weight:600;color:#c9a857">@lowResults.Select(e=>e.Query).Distinct().Count()</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Resultado baixo (≤ 2)</div>
         </div>
     </div>
 
     <!-- Gaps highlight -->
     @if (gaps.Any())
     {
-        <div class="ws-card" style="padding:20px;margin-bottom:20px;border-color:rgba(214,100,80,.25)">
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#e89080;margin-bottom:12px">
-                Gaps — buscas sem resultado (indexar mais músicas sobre esses temas)
+        <div class="ws-card" style="padding:18px 20px;margin-bottom:20px;border-color:rgba(214,100,80,.25)">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#e89080;margin-bottom:12px;font-weight:600">
+                Gaps — buscas sem resultado
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:7px">
                 @foreach (var q in gaps.Select(e => e.Query).Distinct())
                 {
                     <a href="@Url.Action("Index","Home")?q=@Uri.EscapeDataString(q)"
-                       style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;background:rgba(214,100,80,.12);border:1px solid rgba(214,100,80,.28);color:#e89080;font-size:13px;text-decoration:none">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+                       style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;background:rgba(214,100,80,.1);border:1px solid rgba(214,100,80,.28);color:#e89080;font-size:12.5px;text-decoration:none">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
                         @q
                     </a>
                 }
@@ -69,68 +95,220 @@
         </div>
     }
 
-    <!-- Full history table -->
+    <!-- Table card -->
     <div class="ws-card" style="overflow:hidden">
-        <div style="padding:14px 18px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Todas as queries (@aggregated.Count)</span>
-            <input type="text" id="filterInput" class="ws-input" style="width:220px;padding:6px 12px;font-size:13px;border-radius:8px" placeholder="Filtrar…" />
-        </div>
-        <div style="overflow-x:auto">
-            <table id="historyTable" style="width:100%;border-collapse:collapse;font-size:13.5px">
-                <thead>
-                    <tr style="border-bottom:1px solid var(--border-card)">
-                        <th style="padding:10px 18px;text-align:left;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Query</th>
-                        <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Vezes</th>
-                        <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Resultados</th>
-                        <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Última busca</th>
-                        <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px">Ação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in aggregated)
-                    {
-                        var resultColor = row.MinResults == 0 ? "#e89080" : row.MinResults <= 2 ? "#c9a857" : "var(--text-sub)";
-                        var resultLabel = row.MinResults == 0 ? "sem resultado" : row.MinResults == row.MaxResults ? row.MinResults.ToString() : $"{row.MinResults}–{row.MaxResults}";
-                        var dt = DateTime.TryParse(row.LastSearched, out var d) ? d.ToLocalTime().ToString("dd/MM HH:mm") : "—";
 
-                        <tr class="hist-row" style="border-bottom:1px solid var(--border-card)" data-query="@row.Query">
-                            <td style="padding:10px 18px;color:var(--text)">@row.Query</td>
-                            <td style="padding:10px 12px;text-align:center;color:var(--text-muted)">@row.Count</td>
-                            <td style="padding:10px 12px;text-align:center;color:@resultColor;font-weight:500">@resultLabel</td>
-                            <td style="padding:10px 12px;text-align:center;color:var(--text-dim);font-size:12.5px">@dt</td>
-                            <td style="padding:10px 12px;text-align:center">
-                                <a href="@Url.Action("Index","Home")?q=@Uri.EscapeDataString(row.Query)"
-                                   class="ws-btn ws-btn-ghost ws-btn-sm" style="font-size:12px;padding:4px 10px">
-                                    Buscar
-                                </a>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            @if (!aggregated.Any())
-            {
-                <div style="padding:48px;text-align:center;color:var(--text-muted)">Nenhuma busca registrada ainda.</div>
-            }
+        <!-- Toolbar -->
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span id="total-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);flex:1;white-space:nowrap">
+                @aggregated.Count entr@(aggregated.Count == 1 ? "ada" : "adas")
+            </span>
+            <input type="text" id="filterInput" class="ws-input"
+                   style="width:200px;padding:6px 12px;font-size:13px;border-radius:8px"
+                   placeholder="Filtrar query…" />
         </div>
+
+        @if (!aggregated.Any())
+        {
+            <div style="padding:48px;text-align:center;color:var(--text-muted)">Nenhuma busca registrada ainda.</div>
+        }
+        else
+        {
+            <!-- Desktop table -->
+            <div class="hist-table-wrap" style="overflow-x:auto">
+                <table id="historyTable" style="width:100%;border-collapse:collapse;font-size:13.5px">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border-card)">
+                            <th style="padding:10px 18px;text-align:left;font-weight:500;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Query</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap">Buscas</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap">Resultados</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap">Última busca</th>
+                            <th style="padding:10px 12px;text-align:center;font-weight:500;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        @foreach (var row in aggregated)
+                        {
+                            var resultColor = row.MinResults == 0 ? "#e89080" : row.MinResults <= 2 ? "#c9a857" : "var(--text-sub)";
+                            var resultLabel = row.MinResults == 0 ? "sem resultado" : row.MinResults == row.MaxResults ? row.MinResults.ToString() : $"{row.MinResults}–{row.MaxResults}";
+                            var dt = DateTime.TryParse(row.LastSearched, out var d) ? d.ToLocalTime().ToString("dd/MM HH:mm") : "—";
+
+                            <tr class="hist-row" data-query="@row.Query">
+                                <td style="padding:10px 18px;color:var(--text);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@row.Query</td>
+                                <td style="padding:10px 12px;text-align:center;color:var(--text-muted)">@row.Count</td>
+                                <td style="padding:10px 12px;text-align:center;color:@resultColor;font-weight:500;font-size:13px">@resultLabel</td>
+                                <td style="padding:10px 12px;text-align:center;color:var(--text-dim);font-size:12px;white-space:nowrap">@dt</td>
+                                <td style="padding:10px 12px;text-align:center">
+                                    <a href="@Url.Action("Index","Home")?q=@Uri.EscapeDataString(row.Query)"
+                                       class="ws-btn ws-btn-ghost ws-btn-sm" style="font-size:12px;padding:4px 10px">
+                                        Buscar
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile cards -->
+            <div class="hist-cards" id="mobileCards">
+                @foreach (var row in aggregated)
+                {
+                    var resultColor = row.MinResults == 0 ? "#e89080" : row.MinResults <= 2 ? "#c9a857" : "var(--text-sub)";
+                    var resultLabel = row.MinResults == 0 ? "sem resultado" : row.MinResults == row.MaxResults ? row.MinResults.ToString() : $"{row.MinResults}–{row.MaxResults}";
+                    var dt = DateTime.TryParse(row.LastSearched, out var d2) ? d2.ToLocalTime().ToString("dd/MM HH:mm") : "—";
+
+                    <div class="hist-row hist-mobile-row" data-query="@row.Query" style="padding:12px 16px;display:flex;align-items:center;gap:12px">
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">@row.Query</div>
+                            <div style="display:flex;gap:10px;margin-top:4px;font-size:12px;flex-wrap:wrap">
+                                <span style="color:var(--text-dim)">@row.Count × buscado</span>
+                                <span style="color:@resultColor;font-weight:500">@resultLabel</span>
+                                <span style="color:var(--text-dim)">@dt</span>
+                            </div>
+                        </div>
+                        <a href="@Url.Action("Index","Home")?q=@Uri.EscapeDataString(row.Query)"
+                           class="ws-btn ws-btn-ghost ws-btn-sm" style="font-size:12px;padding:4px 10px;flex-shrink:0">
+                            Buscar
+                        </a>
+                    </div>
+                }
+            </div>
+
+            <!-- Pagination -->
+            <div style="padding:12px 16px;border-top:1px solid var(--border-card);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <button class="page-btn" id="pg-prev" onclick="changePage(-1)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div id="pg-buttons" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                <button class="page-btn" id="pg-next" onclick="changePage(1)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <span id="pg-info" style="font-size:12px;color:var(--text-dim);margin-left:4px"></span>
+            </div>
+        }
     </div>
 
 </div>
 
 @section Scripts {
 <script>
-$('#filterInput').on('input', function(){
-    var q = $(this).val().toLowerCase();
-    $('.hist-row').each(function(){
-        $(this).toggle(!q || $(this).data('query').includes(q));
+var PAGE_SIZE = 20;
+var currentPage = 1;
+var filterText = '';
+
+function allRows() {
+    // Both desktop rows and mobile rows — filter by data-query
+    return Array.from(document.querySelectorAll('.hist-row[data-query]'));
+}
+
+function filteredRows() {
+    var q = filterText.toLowerCase();
+    return allRows().filter(function(r) {
+        return !q || r.dataset.query.includes(q);
     });
+}
+
+// Returns only desktop rows (for page slicing)
+function desktopRows() {
+    return Array.from(document.querySelectorAll('#tableBody .hist-row'));
+}
+function mobileRows() {
+    return Array.from(document.querySelectorAll('#mobileCards .hist-mobile-row'));
+}
+
+function renderPage() {
+    var q = filterText.toLowerCase();
+    var dRows = desktopRows();
+    var mRows = mobileRows();
+
+    // Apply filter + pagination to both
+    var filteredDesktop = dRows.filter(function(r) { return !q || r.dataset.query.includes(q); });
+    var filteredMobile  = mRows.filter(function(r) { return !q || r.dataset.query.includes(q); });
+
+    var total = filteredDesktop.length;
+    var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    var start = (currentPage - 1) * PAGE_SIZE;
+    var end   = start + PAGE_SIZE;
+
+    // Hide/show desktop rows
+    dRows.forEach(function(r) { r.style.display = 'none'; });
+    filteredDesktop.forEach(function(r, i) {
+        r.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+
+    // Hide/show mobile rows
+    mRows.forEach(function(r) { r.style.display = 'none'; });
+    filteredMobile.forEach(function(r, i) {
+        r.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+
+    // Update total label
+    var countShown = Math.min(end, total) - start;
+    document.getElementById('total-label').textContent =
+        (q ? total + ' de @aggregated.Count' : total) + (total === 1 ? ' entrada' : ' entradas');
+
+    // Pagination buttons
+    var pgBtns = document.getElementById('pg-buttons');
+    pgBtns.innerHTML = '';
+    var maxBtns = 7;
+    var pages = pageRange(currentPage, totalPages, maxBtns);
+    var prev = null;
+    pages.forEach(function(p) {
+        if (prev !== null && p > prev + 1) {
+            var ellipsis = document.createElement('span');
+            ellipsis.textContent = '…';
+            ellipsis.style.cssText = 'color:var(--text-dim);font-size:13px;padding:0 4px;display:flex;align-items:center';
+            pgBtns.appendChild(ellipsis);
+        }
+        var btn = document.createElement('button');
+        btn.className = 'page-btn' + (p === currentPage ? ' active' : '');
+        btn.textContent = p;
+        btn.onclick = (function(pg) { return function() { currentPage = pg; renderPage(); }; })(p);
+        pgBtns.appendChild(btn);
+        prev = p;
+    });
+
+    document.getElementById('pg-prev').disabled = currentPage <= 1;
+    document.getElementById('pg-next').disabled = currentPage >= totalPages;
+    document.getElementById('pg-info').textContent = totalPages > 1
+        ? 'Página ' + currentPage + ' de ' + totalPages
+        : '';
+}
+
+function pageRange(cur, total, max) {
+    if (total <= max) return Array.from({length:total}, function(_,i){ return i+1; });
+    var half = Math.floor(max / 2);
+    var start = Math.max(1, cur - half);
+    var end   = Math.min(total, start + max - 1);
+    if (end - start < max - 1) start = Math.max(1, end - max + 1);
+    var pages = [];
+    if (start > 1) pages.push(1);
+    for (var p = start; p <= end; p++) pages.push(p);
+    if (end < total) pages.push(total);
+    return pages;
+}
+
+function changePage(delta) {
+    currentPage += delta;
+    renderPage();
+}
+
+document.getElementById('filterInput').addEventListener('input', function() {
+    filterText = this.value.trim();
+    currentPage = 1;
+    renderPage();
 });
 
-$('#clearBtn').click(function(){
+document.getElementById('clearBtn').addEventListener('click', function() {
     if (!confirm('Limpar todo o histórico de buscas?')) return;
-    $.post('@Url.Action("Clear","SearchHistory")', function(){
-        location.reload();
-    });
+    fetch('@Url.Action("Clear","SearchHistory")', { method: 'POST' })
+        .then(function() { location.reload(); });
 });
+
+// Init
+renderPage();
 </script>
 }

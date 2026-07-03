@@ -10,19 +10,20 @@ public class LogsController : Controller
 
     public LogsController(IWebHostEnvironment env) => _env = env;
 
+    private string LogPath => Path.Combine(_env.ContentRootPath, "logs", "app.jsonl");
+
     [HttpGet]
-    public async Task<IActionResult> Index(string? level = null, string? evt = null, int take = 300)
+    public async Task<IActionResult> Index(string? level = null, string? evt = null, int take = 3)
     {
-        var logPath = Path.Combine(_env.ContentRootPath, "logs", "app.jsonl");
         ViewBag.Level = level;
         ViewBag.Event = evt;
         ViewBag.Take  = take;
 
-        if (!System.IO.File.Exists(logPath))
-            return View("~/Views/AppLogs/Index.cshtml", Array.Empty<JsonElement>());
+        if (!System.IO.File.Exists(LogPath))
+            return View("~/Views/AppLogs/Index.cshtml", Array.Empty<JsonElement>().ToList());
 
-        var lines = await System.IO.File.ReadAllLinesAsync(logPath);
-        var entries = lines
+        var lines = await System.IO.File.ReadAllLinesAsync(LogPath);
+        var allFiltered = lines
             .Where(l => !string.IsNullOrWhiteSpace(l))
             .Reverse()
             .Select(line =>
@@ -37,19 +38,51 @@ public class LogsController : Controller
             .Where(e => string.IsNullOrEmpty(evt) ||
                         (e.TryGetProperty("evt", out var ev) &&
                          (ev.GetString()?.Contains(evt, StringComparison.OrdinalIgnoreCase) ?? false)))
-            .Take(take)
             .ToList();
 
-        ViewBag.TotalLines = lines.Length;
-        return View("~/Views/AppLogs/Index.cshtml", entries);
+        ViewBag.TotalLines   = allFiltered.Count;
+        ViewBag.ShowingAll   = take >= allFiltered.Count || take <= 0;
+        return View("~/Views/AppLogs/Index.cshtml", take > 0 ? allFiltered.Take(take).ToList() : allFiltered);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Recent()
+    {
+        if (!System.IO.File.Exists(LogPath))
+            return Json(Array.Empty<object>());
+
+        var lines = await System.IO.File.ReadAllLinesAsync(LogPath);
+        var entries = lines
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Reverse()
+            .Select(line =>
+            {
+                try   { return (JsonElement?)JsonSerializer.Deserialize<JsonElement>(line); }
+                catch { return null; }
+            })
+            .Where(e => e.HasValue)
+            .Select(e => e!.Value)
+            .Take(3)
+            .ToList();
+
+        return Json(entries);
+    }
+
+    [HttpGet]
+    public IActionResult Download()
+    {
+        if (!System.IO.File.Exists(LogPath))
+            return NotFound("Arquivo de log não encontrado.");
+
+        var bytes = System.IO.File.ReadAllBytes(LogPath);
+        return File(bytes, "text/plain", $"app-{DateTime.Now:yyyyMMdd-HHmm}.log");
     }
 
     [HttpPost]
     public IActionResult Clear()
     {
-        var logPath = Path.Combine(_env.ContentRootPath, "logs", "app.jsonl");
-        if (System.IO.File.Exists(logPath))
-            System.IO.File.WriteAllText(logPath, "");
+        if (System.IO.File.Exists(LogPath))
+            System.IO.File.WriteAllText(LogPath, "");
         return Json(new { success = true });
     }
 }

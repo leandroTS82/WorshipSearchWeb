@@ -34,6 +34,7 @@ REGRAS:
 - Não repita tags já listadas
 - worship_moments: use apenas valores desta lista exata: Adoração, Santa Ceia, Apelo, Intercessão, Ofertório, Abertura, Encerramento
 nota: para definiçãodo worship_moments, considere o momento do culto em que a estrofe se encaixda ao sacrifício de cristo, ressureição de cristo, partir do pão e beber do calice, um contexto do culto onde iremos celebrar a ceia.
+- NÃO gere a tag ""celebração"" em nenhum campo — ela é adicionada manualmente pelo usuário.
 
 Retorne um objeto JSON com estes campos exatos. Use [] ou """" para campos sem novidades:
 themes, moods, contexts, keywords, biblical_topics, biblical_references, biblical_books, biblical_characters, synonyms, worship_style, energy_level, occasion, worship_moments
@@ -117,7 +118,8 @@ Escreva em português (pt-BR), de forma concisa e pesquisável:
 - worship_style: estilo de adoração (ex: ""contemplativo"", ""celebração"", ""intercessão"") — 1-3 palavras
 - energy_level: nível de energia (ex: ""suave"", ""moderado"", ""vibrante"") — 1-2 palavras
 - occasion: ocasião ideal (ex: ""abertura do culto"", ""Santa Ceia"", ""encerramento"") — 1-4 palavras
-- worship_moments: lista dos momentos do culto em que esta música se encaixa. Use APENAS valores desta lista: Celebração, Adoração, Santa Ceia, Apelo, Intercessão, Ofertório, Abertura, Encerramento
+- worship_moments: lista dos momentos do culto em que esta música se encaixa. Use APENAS valores desta lista: Adoração, Santa Ceia, Apelo, Intercessão, Ofertório, Abertura, Encerramento
+- NÃO gere a tag ""celebração"" em nenhum campo — ela é adicionada manualmente pelo usuário.
 
 Contexto sempre cristão/evangélico. Textos curtos e diretos.
 

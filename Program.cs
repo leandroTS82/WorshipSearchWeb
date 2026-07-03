@@ -72,6 +72,10 @@ var jsonFolder = Path.Combine(app.Environment.ContentRootPath, "json");
 Directory.CreateDirectory(jsonFolder);
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "logs"));
 
+// One-time migration: mark all pre-existing songs as approved
+var migrationLogger = app.Services.GetRequiredService<ILogger<Program>>();
+await MusicStatusMigrationService.RunIfNeededAsync(jsonFolder, migrationLogger);
+
 // Pre-warm suggestion cache in background so first request is instant
 var suggestions = app.Services.GetRequiredService<ISuggestionService>();
 _ = suggestions.GetSuggestionsAsync();

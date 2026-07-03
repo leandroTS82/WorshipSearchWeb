@@ -41,7 +41,7 @@
         </a>
         <div style="flex:1">
             <div class="ws-page-title">Enriquecer em lote</div>
-            <div class="ws-page-sub">A IA analisa cada música e preenche temas, emoções, referências bíblicas e resumo.</div>
+            <div class="ws-page-sub">Analisa cada música e preenche temas, emoções, referências bíblicas e resumo.</div>
         </div>
     </div>
 
@@ -83,7 +83,7 @@
                         </div>
                         <div style="margin-top:7px;font-size:12.5px;color:#c9a857;display:flex;align-items:center;gap:5px">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                            Sobrescreve metadados gerados anteriormente e edições manuais nos campos de IA.
+                            Sobrescreve metadados gerados anteriormente e edições manuais nos campos enriquecidos.
                         </div>
                     </div>
                 </div>
@@ -350,11 +350,22 @@ async function processSong(song) {
         var paragraphs = getUniqueParagraphs(doc.lyrics);
         if (!paragraphs.length) return { ok: false, error: 'sem letra' };
 
+        // Preserve existing tags so re-enrichment never discards manual additions
+        var existing = doc.search || {};
         var acc = {
-            themes:[], moods:[], contexts:[], keywords:[],
-            biblical_topics:[], biblical_references:[], biblical_books:[],
-            biblical_characters:[], synonyms:[],
-            worship_style:'', energy_level:'', occasion:'', worship_moments:[]
+            themes:              (existing.themes              || []).slice(),
+            moods:               (existing.moods               || []).slice(),
+            contexts:            (existing.contexts            || []).slice(),
+            keywords:            (existing.keywords            || []).slice(),
+            biblical_topics:     (existing.biblical_topics     || []).slice(),
+            biblical_references: (existing.biblical_references || []).slice(),
+            biblical_books:      (existing.biblical_books      || []).slice(),
+            biblical_characters: (existing.biblical_characters || []).slice(),
+            synonyms:            (existing.synonyms            || []).slice(),
+            worship_style:       existing.worship_style  || '',
+            energy_level:        existing.energy_level   || '',
+            occasion:            existing.occasion        || '',
+            worship_moments:     (existing.worship_moments     || []).slice()
         };
 
         for (var j = 0; j < paragraphs.length; j++) {

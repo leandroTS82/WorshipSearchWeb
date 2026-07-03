@@ -2,9 +2,35 @@
 @{
     ViewData["Title"] = "Escalas";
 
-    var groups = Model
+    var today = System.DateOnly.FromDateTime(DateTime.Today);
+
+    // Sort: future/today first (ascending), then past (descending), then no-date
+    var sorted = Model
+        .OrderBy(d => {
+            if (!System.DateOnly.TryParse(d.Data, out var dt)) return 2;
+            return dt >= today ? 0 : 1;
+        })
+        .ThenBy(d => {
+            if (!System.DateOnly.TryParse(d.Data, out var dt)) return System.DateOnly.MaxValue;
+            return d.Data != null && System.DateOnly.TryParse(d.Data, out var dt2) && dt2 >= today
+                ? dt2  // future: ascending
+                : System.DateOnly.MaxValue.AddDays(-(dt.DayNumber)); // past: descending
+        })
+        .ToList();
+
+    // Find next upcoming escala
+    var nextId = sorted.FirstOrDefault(d =>
+        System.DateOnly.TryParse(d.Data, out var dt) && dt >= today)?.Id ?? "";
+
+    var groups = sorted
         .GroupBy(d => string.IsNullOrEmpty(d.Data) || d.Data.Length < 7 ? "0000-00" : d.Data[..7])
-        .OrderByDescending(g => g.Key)
+        .OrderBy(g => {
+            if (g.Key == "0000-00") return "9999-99";
+            // Groups with any future escala come first, past groups after
+            var hasUpcoming = g.Any(d => System.DateOnly.TryParse(d.Data, out var dt) && dt >= today);
+            return hasUpcoming ? "0" + g.Key : "1" + g.Key.Replace("-","") is var k ? "1" + g.Key : "1" + g.Key;
+        })
+        .ThenByDescending(g => g.Key)
         .ToList();
 
     string MonthLabel(string ym)
@@ -16,16 +42,20 @@
             return months[d.Month] + " " + d.Year;
         return ym;
     }
-
-    string DayLabel(string iso)
-    {
-        if (!System.DateOnly.TryParse(iso, out var d)) return iso;
-        string[] days = { "Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb" };
-        return days[(int)d.DayOfWeek] + " " + d.ToString("dd/MM/yyyy");
-    }
 }
 
 <style>
+.month-header {
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; user-select:none;
+    padding:6px 4px; margin-bottom:10px; border-radius:8px;
+    transition:background .12s;
+}
+.month-header:hover { background:rgba(255,255,255,.03); }
+.month-chevron { transition:transform .2s; color:var(--text-dim); flex-shrink:0; }
+.month-body { overflow:hidden; transition:max-height .25s ease, opacity .2s; }
+.month-body.collapsed { max-height:0 !important; opacity:0; pointer-events:none; }
+
 .escala-card {
     display:flex; align-items:center; gap:16px;
     padding:14px 18px;
@@ -34,6 +64,13 @@
 }
 .escala-card:last-child { border-bottom:none; }
 .escala-card:hover { background:rgba(255,255,255,.02); }
+.escala-card.is-past { opacity:.55; }
+.escala-card.is-past:hover { opacity:.75; }
+.escala-card.is-next {
+    background:rgba(214,145,95,.05);
+    border-left:3px solid var(--accent);
+    padding-left:15px;
+}
 .escala-date-badge {
     min-width:90px; text-align:center;
     padding:6px 10px; border-radius:8px;
@@ -71,14 +108,23 @@
     {
         foreach (var group in groups)
         {
-            <div style="margin-bottom:28px">
-                <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);margin-bottom:10px;padding:0 2px">
-                    @MonthLabel(group.Key)
+            var groupKey = group.Key;
+            <div style="margin-bottom:24px" data-month-group="@groupKey">
+                <div class="month-header" onclick="toggleMonth('@groupKey', this)">
+                    <span style="font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);font-weight:600">
+                        @MonthLabel(group.Key)
+                        <span style="font-weight:400;opacity:.6;margin-left:6px">(@group.Count())</span>
+                    </span>
+                    <svg class="month-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
+                <div class="month-body" data-month-body="@groupKey">
                 <div class="ws-card" style="overflow:hidden">
-                    @foreach (var doc in group.OrderByDescending(d => d.Data))
+                    @foreach (var doc in group)
                     {
-                        <div class="escala-card">
+                        var isPast   = System.DateOnly.TryParse(doc.Data, out var docDate) && docDate < today;
+                        var isNext   = doc.Id == nextId;
+                        var cardCls  = "escala-card" + (isPast ? " is-past" : "") + (isNext ? " is-next" : "");
+                        <div class="@cardCls">
                             <div class="escala-date-badge">
                                 @if (!string.IsNullOrEmpty(doc.Data) && System.DateOnly.TryParse(doc.Data, out var dt))
                                 {
@@ -93,8 +139,28 @@
                             </div>
 
                             <div style="flex:1;min-width:0">
-                                <div style="font-weight:500;font-size:15px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                                    @(string.IsNullOrEmpty(doc.Titulo) ? "(sem título)" : doc.Titulo)
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;min-width:0">
+                                    <div style="font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                        @(string.IsNullOrEmpty(doc.Titulo) ? "(sem título)" : doc.Titulo)
+                                    </div>
+                                    @if (isNext)
+                                    {
+                                        <span style="flex-shrink:0;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent);white-space:nowrap;font-weight:600">
+                                            próxima
+                                        </span>
+                                    }
+                                    else if (isPast)
+                                    {
+                                        <span style="flex-shrink:0;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--border-card);color:var(--text-dim);white-space:nowrap">
+                                            passada
+                                        </span>
+                                    }
+                                    else if (doc.Rascunho)
+                                    {
+                                        <span style="flex-shrink:0;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(200,160,50,.12);border:1px solid rgba(200,160,50,.28);color:#c9a857;white-space:nowrap;font-weight:500">
+                                            em andamento
+                                        </span>
+                                    }
                                 </div>
                                 <div style="font-size:12.5px;color:var(--text-dim);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                                     @if (!string.IsNullOrEmpty(doc.Ministro))
@@ -115,10 +181,10 @@
                             </div>
 
                             <div style="display:flex;gap:6px;flex-shrink:0">
-                                <button class="ws-btn ws-btn-ghost ws-btn-sm copy-escala-btn"
-                                        data-id="@doc.Id" title="Copiar mensagem">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                    <span class="d-copy-label">Copiar</span>
+                                <button class="ws-btn ws-btn-ghost ws-btn-sm view-escala-btn"
+                                        data-id="@doc.Id" title="Visualizar escala">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    Ver
                                 </button>
                                 <a href="@Url.Action("Edit","Escala", new { id = doc.Id })"
                                    class="ws-btn ws-btn-ghost ws-btn-sm" title="Editar">
@@ -132,57 +198,246 @@
                         </div>
                     }
                 </div>
+                </div><!-- month-body -->
             </div>
         }
     }
 </div>
 
-<!-- Copy text modal -->
-<div id="copy-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:20px">
-    <div style="background:var(--bg-card);border:1px solid var(--border-card);border-radius:14px;width:min(96vw,540px);max-height:80vh;display:flex;flex-direction:column">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border-card)">
-            <div style="font-weight:500;font-size:15px">Mensagem gerada</div>
-            <button onclick="closeCopyModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:22px;line-height:1">×</button>
+<!-- Escala view modal -->
+<div id="view-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+    <div style="background:var(--bg-card);border:1px solid var(--border-card);border-radius:16px;width:min(96vw,620px);margin:auto;display:flex;flex-direction:column;position:relative">
+
+        <!-- Modal header -->
+        <div style="padding:20px 22px 18px;border-bottom:1px solid var(--border-card)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+                <div id="vm-header" style="min-width:0"></div>
+                <button onclick="closeViewModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:24px;line-height:1;flex-shrink:0;margin-top:-2px">×</button>
+            </div>
         </div>
-        <pre id="copy-modal-text" style="flex:1;overflow:auto;padding:18px 20px;font-family:inherit;font-size:13.5px;white-space:pre-wrap;line-height:1.75;color:var(--text-sub);margin:0"></pre>
-        <div style="padding:14px 20px;border-top:1px solid var(--border-card);display:flex;gap:10px">
-            <button id="do-copy-btn" onclick="doModalCopy()" class="ws-btn ws-btn-primary" style="flex:1">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                Copiar para área de transferência
+
+        <!-- Song list -->
+        <div id="vm-songs" style="padding:0 22px;max-height:55vh;overflow-y:auto"></div>
+
+        <!-- Preview tab -->
+        <div style="margin:0 22px 16px;border-radius:12px;border:1px solid rgba(214,145,95,.3);background:linear-gradient(135deg,rgba(214,145,95,.06),rgba(0,0,0,.12));padding:16px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--accent)">Mensagem para o grupo</span>
+            </div>
+            <pre id="vm-text" style="margin:0;white-space:pre-wrap;font-family:inherit;font-size:13.5px;line-height:1.8;color:var(--text-sub)"></pre>
+        </div>
+
+        <!-- Footer buttons -->
+        <div style="padding:14px 22px 20px;border-top:1px solid var(--border-card);display:flex;gap:8px;flex-wrap:wrap">
+            <button id="vm-copy-btn" onclick="doViewCopy()" class="ws-btn ws-btn-primary">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copiar mensagem
             </button>
-            <button onclick="closeCopyModal()" class="ws-btn ws-btn-ghost">Fechar</button>
+            <a id="vm-edit-link" href="#" class="ws-btn ws-btn-ghost">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Editar
+            </a>
+            <button onclick="closeViewModal()" class="ws-btn ws-btn-ghost" style="margin-left:auto">Fechar</button>
         </div>
     </div>
 </div>
 
 @section Scripts {
 <script>
+// ── Month toggles ─────────────────────────────────────────────────────────────
+
+var STORAGE_KEY = 'escala-months-collapsed';
+
+function getCollapsed() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveCollapsed(list) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch(e) {}
+}
+
+function toggleMonth(key, headerEl) {
+    var body = document.querySelector('[data-month-body="' + key + '"]');
+    var chevron = headerEl.querySelector('.month-chevron');
+    var collapsed = getCollapsed();
+    var isNowCollapsed = !body.classList.contains('collapsed');
+
+    if (isNowCollapsed) {
+        body.style.maxHeight = body.scrollHeight + 'px';
+        requestAnimationFrame(function() {
+            body.classList.add('collapsed');
+            body.style.maxHeight = '';
+        });
+        chevron.style.transform = 'rotate(-90deg)';
+        if (!collapsed.includes(key)) collapsed.push(key);
+    } else {
+        body.classList.remove('collapsed');
+        body.style.maxHeight = body.scrollHeight + 'px';
+        setTimeout(function() { body.style.maxHeight = ''; }, 250);
+        chevron.style.transform = '';
+        collapsed = collapsed.filter(function(k) { return k !== key; });
+    }
+    saveCollapsed(collapsed);
+}
+
+// Apply saved state on load
+(function() {
+    var collapsed = getCollapsed();
+    document.querySelectorAll('[data-month-group]').forEach(function(group) {
+        var key = group.dataset.monthGroup;
+        var body = group.querySelector('[data-month-body]');
+        var chevron = group.querySelector('.month-chevron');
+        if (!body || !chevron) return;
+        // Set natural height first so transitions work later
+        body.style.maxHeight = 'none';
+        if (collapsed.includes(key)) {
+            body.classList.add('collapsed');
+            body.style.maxHeight = '';
+            chevron.style.transform = 'rotate(-90deg)';
+        }
+    });
+})();
+
+// ── View modal ────────────────────────────────────────────────────────────────
+
+var getUrl     = '@Url.Action("Get","Escala")';
 var copyUrl    = '@Url.Action("CopyText","Escala")';
 var deleteUrl  = '@Url.Action("Delete","Escala")';
+var editBase   = '@Url.Action("Edit","Escala")';
 
-document.querySelectorAll('.copy-escala-btn').forEach(function(btn) {
+// ── View modal ────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.view-escala-btn').forEach(function(btn) {
     btn.addEventListener('click', async function() {
         var id = this.dataset.id;
-        var label = this.querySelector('.d-copy-label');
-        label.textContent = '…';
+        document.getElementById('view-modal').style.display = 'flex';
+        document.getElementById('vm-header').innerHTML = '<div style="font-size:13px;color:var(--text-dim)">Carregando…</div>';
+        document.getElementById('vm-songs').innerHTML = '';
+        document.getElementById('vm-text').textContent = '';
         try {
-            var r = await fetch(copyUrl + '?id=' + encodeURIComponent(id));
-            var text = await r.text();
-            document.getElementById('copy-modal-text').textContent = text;
-            document.getElementById('copy-modal').style.display = 'flex';
-        } catch(e) { alert('Erro ao carregar texto.'); }
-        label.textContent = 'Copiar';
+            var [docRes, textRes] = await Promise.all([
+                fetch(getUrl + '?id=' + encodeURIComponent(id)).then(r => r.json()),
+                fetch(copyUrl + '?id=' + encodeURIComponent(id)).then(r => r.text())
+            ]);
+            renderViewModal(docRes, textRes);
+        } catch(e) {
+            document.getElementById('vm-header').innerHTML = '<div style="color:#ff8a80">Erro ao carregar escala.</div>';
+        }
     });
 });
 
-function closeCopyModal() {
-    document.getElementById('copy-modal').style.display = 'none';
+function renderViewModal(doc, copyText) {
+    var days = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+    var dateStr = '';
+    if (doc.data) {
+        var d = new Date(doc.data + 'T12:00:00');
+        if (!isNaN(d)) dateStr = days[d.getDay()] + ', ' + String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+    }
+
+    document.getElementById('vm-header').innerHTML =
+        '<div style="font-weight:600;font-size:17px;margin-bottom:4px">' + esc(doc.titulo || '(sem título)') + '</div>'
+        + '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--text-muted)">'
+        + (dateStr ? '<span>📅 ' + esc(dateStr) + '</span>' : '')
+        + (doc.ministro ? '<span>🎤 ' + esc(doc.ministro) + '</span>' : '')
+        + ((doc.musicas||[]).length ? '<span>🎵 ' + doc.musicas.length + ' música(s)</span>' : '')
+        + '</div>';
+
+    document.getElementById('vm-edit-link').href = editBase + '?id=' + encodeURIComponent(doc.id);
+
+    var musicas = doc.musicas || [];
+    if (!musicas.length) {
+        document.getElementById('vm-songs').innerHTML = '<div style="padding:18px 0;text-align:center;color:var(--text-dim);font-size:13.5px">Nenhuma música adicionada.</div>';
+    } else {
+        var curMom = null;
+        var html = '<div style="padding:12px 0">';
+        musicas.forEach(function(m, i) {
+            var mom = (m.momento || '').trim();
+            if (mom && mom !== curMom) {
+                html += '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--accent);font-weight:600;padding:' + (i===0?'4':'14') + 'px 0 6px">' + esc(mom) + '</div>';
+                curMom = mom;
+            }
+            var yt = (m.youtube_url || '').trim();
+            var vid = ytVideoId(yt);
+            html += '<div id="vm-song-' + i + '" style="border-bottom:1px solid var(--border-card)">';
+            // row
+            html += '<div style="display:flex;align-items:center;gap:12px;padding:9px 0">'
+                + '<div style="width:22px;height:22px;border-radius:50%;background:var(--accent-soft);border:1px solid var(--accent-line);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--accent);flex-shrink:0">' + (i+1) + '</div>'
+                + '<div style="flex:1;min-width:0">'
+                + '<div style="font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(m.titulo||'') + '</div>'
+                + '<div style="font-size:12px;color:var(--text-muted)">' + esc(m.artista||'') + (m.obs ? ' · <em>' + esc(m.obs) + '</em>' : '') + '</div>'
+                + '</div>';
+            if (vid) {
+                html += '<button type="button" onclick="toggleEmbed(' + i + ',\'' + vid + '\')" id="vm-yt-btn-' + i + '"'
+                    + ' style="flex-shrink:0;background:none;border:none;cursor:pointer;color:#ff4e4e;padding:2px" title="Assistir">'
+                    + '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.96-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon fill="white" points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"/></svg>'
+                    + '</button>';
+            } else {
+                html += '<span style="flex-shrink:0;opacity:.25" title="Sem link YouTube"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>';
+            }
+            html += '</div>';
+            // embed slot (hidden initially)
+            html += '<div id="vm-embed-' + i + '" style="display:none;padding-bottom:12px">'
+                + '<div style="position:relative;padding-bottom:56.25%;border-radius:10px;overflow:hidden;background:#000">'
+                + '<iframe id="vm-iframe-' + i + '" width="100%" height="100%" style="position:absolute;top:0;left:0;border:none" allowfullscreen allow="autoplay;encrypted-media"></iframe>'
+                + '</div></div>';
+            html += '</div>';
+        });
+        html += '</div>';
+        document.getElementById('vm-songs').innerHTML = html;
+    }
+
+    document.getElementById('vm-text').textContent = copyText;
 }
 
-function doModalCopy() {
-    var text = document.getElementById('copy-modal-text').textContent;
-    var btn  = document.getElementById('do-copy-btn');
+function ytVideoId(url) {
+    if (!url) return '';
+    // youtu.be/ID or youtu.be/ID?...
+    var m = url.match(/youtu\.be\/([A-Za-z0-9_-]{6,15})/);
+    if (m) return m[1];
+    // youtube.com/watch?v=ID
+    m = url.match(/[?&]v=([A-Za-z0-9_-]{6,15})/);
+    if (m) return m[1];
+    return '';
+}
+
+function toggleEmbed(idx, vid) {
+    var slot   = document.getElementById('vm-embed-' + idx);
+    var iframe = document.getElementById('vm-iframe-' + idx);
+    var btn    = document.getElementById('vm-yt-btn-' + idx);
+    var open   = slot.style.display === 'none';
+    // close all other embeds first
+    document.querySelectorAll('[id^="vm-embed-"]').forEach(function(el) {
+        var i = el.id.replace('vm-embed-', '');
+        el.style.display = 'none';
+        var f = document.getElementById('vm-iframe-' + i);
+        if (f) f.src = '';
+    });
+    if (open) {
+        slot.style.display = 'block';
+        iframe.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=1';
+        btn.style.color = '#fff';
+        btn.style.background = '#ff4e4e';
+        btn.style.borderRadius = '6px';
+    } else {
+        btn.style.color = '#ff4e4e';
+        btn.style.background = 'none';
+    }
+}
+
+function closeViewModal() {
+    // stop all embeds before closing
+    document.querySelectorAll('[id^="vm-iframe-"]').forEach(function(f) { f.src = ''; });
+    document.getElementById('view-modal').style.display = 'none';
+}
+
+function doViewCopy() {
+    var text = document.getElementById('vm-text').textContent;
+    var btn  = document.getElementById('vm-copy-btn');
     var orig = btn.innerHTML;
+    var done = function() {
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Copiado!';
+        setTimeout(function() { btn.innerHTML = orig; }, 2000);
+    };
     if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(done);
     } else {
@@ -191,25 +446,31 @@ function doModalCopy() {
         document.body.appendChild(ta); ta.select(); document.execCommand('copy');
         document.body.removeChild(ta); done();
     }
-    function done() {
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Copiado!';
-        setTimeout(function() { btn.innerHTML = orig; }, 2000);
-    }
 }
+
+// ── Delete ────────────────────────────────────────────────────────────────────
 
 document.querySelectorAll('.delete-escala-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
         if (!confirm('Excluir esta escala?')) return;
         var id = this.dataset.id;
         var row = this.closest('.escala-card');
-        fetch(deleteUrl + '?id=' + encodeURIComponent(id), { method: 'DELETE' })
+        fetch(deleteUrl + '?id=' + encodeURIComponent(id), { method: 'POST' })
             .then(function() { row.style.transition = 'opacity .25s'; row.style.opacity = '0'; setTimeout(function() { row.remove(); }, 260); })
             .catch(function() { alert('Erro ao excluir.'); });
     });
 });
 
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeCopyModal();
+    if (e.key === 'Escape') closeViewModal();
 });
+
+document.getElementById('view-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeViewModal();
+});
+
+function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
 }
