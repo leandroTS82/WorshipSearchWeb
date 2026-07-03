@@ -1,0 +1,426 @@
+@{
+    ViewData["Title"] = "Avançado";
+}
+
+<style>
+.adv-section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+.cc-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    border: 1px solid transparent;
+}
+.cc-row.found   { background: rgba(60,180,90,0.06);  border-color: rgba(60,180,90,0.15); }
+.cc-row.missing { background: rgba(255,255,255,0.02); border-color: var(--border-card); }
+.cc-row.already { background: rgba(214,145,95,0.06); border-color: rgba(214,145,95,0.15); }
+.cc-song-name   { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.cc-artist      { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.cc-status      { font-size: 12px; white-space: nowrap; }
+.adv-tool-card  { margin-bottom: 20px; }
+.adv-links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    padding: 20px 24px;
+}
+.adv-link-tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-card);
+    background: var(--bg-input);
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color .15s, background .15s;
+}
+.adv-link-tile:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+.adv-link-icon {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-line);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.adv-link-label { font-size: 14px; font-weight: 500; line-height: 1.3; }
+.adv-link-desc  { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Collapsible */
+.adv-collapse-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); padding: 4px 8px; border-radius: 6px;
+    font-size: 13px; display: flex; align-items: center; gap: 6px;
+    transition: color .15s, background .15s;
+}
+.adv-collapse-btn:hover { background: var(--bg-input); color: var(--text); }
+.adv-collapse-body { transition: none; }
+.adv-collapse-body.collapsed { display: none; }
+</style>
+
+<div style="max-width:860px;margin:0 auto" class="ws-fade">
+
+    <div style="margin-bottom:28px">
+        <div class="ws-page-title">Avançado</div>
+        <div class="ws-page-sub">Ferramentas de enriquecimento, manutenção e configuração do catálogo.</div>
+    </div>
+
+    <!-- ── Atalhos ─────────────────────────────────────────────────────── -->
+    <div class="ws-card adv-tool-card">
+        <div style="padding:16px 24px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between">
+            <div>
+                <div style="font-weight:500;margin-bottom:2px">Gerenciamento</div>
+                <div style="font-size:13px;color:var(--text-muted)">Acesso rápido às áreas de configuração do sistema.</div>
+            </div>
+        </div>
+        <div class="adv-links-grid">
+            <a href="@Url.Action("Index","AdditionalSuggestions")" class="adv-link-tile">
+                <div class="adv-link-icon">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div>
+                    <div class="adv-link-label">Sugestões Adicionais</div>
+                    <div class="adv-link-desc">Tags fixas nas buscas</div>
+                </div>
+            </a>
+            <a href="@Url.Action("Index","SearchRestrictions")" class="adv-link-tile">
+                <div class="adv-link-icon">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                </div>
+                <div>
+                    <div class="adv-link-label">Restrições de Busca</div>
+                    <div class="adv-link-desc">Termos bloqueados</div>
+                </div>
+            </a>
+            <a href="https://worshipsearch.twobrothermotors.com.br/MusicLibrary/EnrichAll" target="_blank" rel="noopener" class="adv-link-tile">
+                <div class="adv-link-icon">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </div>
+                <div>
+                    <div class="adv-link-label">Enriquecer (Prod)</div>
+                    <div class="adv-link-desc">Rodar EnrichAll em produção</div>
+                </div>
+            </a>
+            <a href="@Url.Action("Index","Logs")" class="adv-link-tile">
+                <div class="adv-link-icon">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div>
+                    <div class="adv-link-label">Histórico / Logs</div>
+                    <div class="adv-link-desc">Eventos e erros</div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- ── CifraClub ──────────────────────────────────────────────────── -->
+    <div class="ws-card adv-tool-card">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:500;margin-bottom:3px">Enriquecer com CifraClub</div>
+                <div style="font-size:13px;color:var(--text-muted)">Busca e vincula o link de cifras para cada música via <code style="font-size:12px;background:var(--bg-input);padding:1px 5px;border-radius:4px">solr.sscdn.co</code>. Gera relatório das músicas não encontradas.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+                <button class="adv-collapse-btn" onclick="toggleSection('cifra-body','cifra-chevron')" title="Expandir / recolher">
+                    <svg id="cifra-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="transition:transform .2s;transform:rotate(-90deg)"><polyline points="6 9 12 15 18 9"/></svg>
+                    Expandir
+                </button>
+            </div>
+        </div>
+        <div id="cifra-body" class="adv-collapse-body collapsed">
+            <div style="padding:16px 24px;border-bottom:1px solid var(--border-card);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <button id="startCifraBtn" class="ws-btn ws-btn-primary" onclick="startCifra()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="20" cy="16" r="3"/></svg>
+                    Iniciar enriquecimento
+                </button>
+                <a id="cifra-download-btn" href="@Url.Action("DownloadReport","Advanced")?type=cifra" download
+                   style="display:none" class="ws-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Baixar relatório
+                </a>
+            </div>
+            <div id="cifra-stats-panel" style="display:none;padding:14px 24px;border-bottom:1px solid var(--border-card)">
+                <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px">
+                    <span>Total: <strong id="cs-total">0</strong></span>
+                    <span style="color:#69d18a">Encontrado: <strong id="cs-found">0</strong></span>
+                    <span style="color:var(--text-dim)">Não encontrado: <strong id="cs-notfound">0</strong></span>
+                    <span style="color:var(--accent)">Já tinha: <strong id="cs-already">0</strong></span>
+                    <span style="color:var(--text-muted)">Pendente: <strong id="cs-pending">0</strong></span>
+                </div>
+                <div style="margin-top:10px;height:4px;background:var(--border-card);border-radius:2px;overflow:hidden">
+                    <div id="cifra-prog" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s"></div>
+                </div>
+            </div>
+            <div style="padding:14px 24px">
+                <div id="cifra-running" style="display:none;font-size:13px;color:var(--text-muted);margin-bottom:10px">
+                    <span class="ws-spinner" style="width:13px;height:13px;border-width:2px;vertical-align:middle;margin-right:6px"></span>
+                    <span id="cifra-status">Carregando músicas…</span>
+                </div>
+                <div id="cifra-log" style="display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border-card) transparent"></div>
+                <div id="cifra-done" style="display:none;padding:10px 14px;background:rgba(60,180,90,0.08);border:1px solid rgba(60,180,90,0.2);border-radius:8px;color:#69d18a;font-size:13px;margin-top:8px">
+                    ✓ Enriquecimento de cifras concluído.
+                    <span id="cifra-report-status" style="margin-left:8px;font-size:12px;color:var(--text-muted)"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── YouTube ─────────────────────────────────────────────────────── -->
+    <div class="ws-card adv-tool-card">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border-card);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:500;margin-bottom:3px">Enriquecer com YouTube</div>
+                <div style="font-size:13px;color:var(--text-muted)">Extrai o ID do YouTube de cada página do <code style="font-size:12px;background:var(--bg-input);padding:1px 5px;border-radius:4px">letras.mus.br</code> e salva no catálogo para exibição e compartilhamento.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+                <button class="adv-collapse-btn" onclick="toggleSection('yt-body','yt-chevron')" title="Expandir / recolher">
+                    <svg id="yt-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="transition:transform .2s;transform:rotate(-90deg)"><polyline points="6 9 12 15 18 9"/></svg>
+                    Expandir
+                </button>
+            </div>
+        </div>
+        <div id="yt-body" class="adv-collapse-body collapsed">
+            <div style="padding:16px 24px;border-bottom:1px solid var(--border-card);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <button id="startYtBtn" class="ws-btn ws-btn-primary" onclick="startYoutube()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Iniciar enriquecimento
+                </button>
+                <a id="yt-download-btn" href="@Url.Action("DownloadReport","Advanced")?type=youtube" download
+                   style="display:none" class="ws-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Baixar relatório
+                </a>
+            </div>
+            <div id="yt-stats-panel" style="display:none;padding:14px 24px;border-bottom:1px solid var(--border-card)">
+                <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px">
+                    <span>Total: <strong id="ys-total">0</strong></span>
+                    <span style="color:#69d18a">Encontrado: <strong id="ys-found">0</strong></span>
+                    <span style="color:var(--text-dim)">Não encontrado: <strong id="ys-notfound">0</strong></span>
+                    <span style="color:var(--accent)">Já tinha: <strong id="ys-already">0</strong></span>
+                    <span style="color:var(--text-muted)">Pendente: <strong id="ys-pending">0</strong></span>
+                </div>
+                <div style="margin-top:10px;height:4px;background:var(--border-card);border-radius:2px;overflow:hidden">
+                    <div id="yt-prog" style="height:100%;background:#e53;border-radius:2px;width:0%;transition:width .3s"></div>
+                </div>
+            </div>
+            <div style="padding:14px 24px">
+                <div id="yt-running" style="display:none;font-size:13px;color:var(--text-muted);margin-bottom:10px">
+                    <span class="ws-spinner" style="width:13px;height:13px;border-width:2px;vertical-align:middle;margin-right:6px"></span>
+                    <span id="yt-status">Carregando músicas…</span>
+                </div>
+                <div id="yt-log" style="display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border-card) transparent"></div>
+                <div id="yt-done" style="display:none;padding:10px 14px;background:rgba(60,180,90,0.08);border:1px solid rgba(60,180,90,0.2);border-radius:8px;color:#69d18a;font-size:13px;margin-top:8px">
+                    ✓ Enriquecimento de YouTube concluído.
+                    <span id="yt-report-status" style="margin-left:8px;font-size:12px;color:var(--text-muted)"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+// ── Toggle collapse ───────────────────────────────────────────────────────
+function toggleSection(bodyId, chevronId) {
+    var body = document.getElementById(bodyId);
+    var chev = document.getElementById(chevronId);
+    var isCollapsed = body.classList.toggle('collapsed');
+    chev.style.transform = isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+    var btn = chev.closest('.adv-collapse-btn');
+    if (btn) btn.lastChild.textContent = isCollapsed ? ' Expandir' : ' Recolher';
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function appendRow(logId, cls, title, artist, statusText, link, linkLabel) {
+    var log = document.getElementById(logId);
+    var div = document.createElement('div');
+    div.className = 'cc-row ' + cls;
+    var color = cls === 'found' ? '#69d18a' : cls === 'already' ? 'var(--accent)' : 'var(--text-dim)';
+    var linkHtml = link
+        ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;white-space:nowrap">' + esc(linkLabel || '↗') + '</a>'
+        : '';
+    div.innerHTML =
+        '<div><div class="cc-song-name">' + esc(title) + '</div><div class="cc-artist">' + esc(artist) + '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:10px"><span class="cc-status" style="color:' + color + '">' + esc(statusText) + '</span>' + linkHtml + '</div>';
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+}
+
+function setProgress(barId, done, total) {
+    document.getElementById(barId).style.width = (total > 0 ? Math.round(done/total*100) : 0) + '%';
+}
+
+async function saveReport(type, songs) {
+    try {
+        var r = await (await fetch('@Url.Action("SaveReport","Advanced")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: type, songs: songs })
+        })).json();
+        return r.success;
+    } catch(e) { return false; }
+}
+
+// ── CifraClub enrichment ─────────────────────────────────────────────────
+var cifraRunning = false;
+
+async function startCifra() {
+    if (cifraRunning) return;
+    cifraRunning = true;
+    var btn = document.getElementById('startCifraBtn');
+    btn.disabled = true; btn.textContent = 'Processando…';
+    document.getElementById('cifra-download-btn').style.display = 'none';
+    document.getElementById('cifra-log').innerHTML = '';
+    document.getElementById('cifra-done').style.display = 'none';
+    document.getElementById('cifra-running').style.display = 'block';
+    document.getElementById('cifra-stats-panel').style.display = 'block';
+    document.getElementById('cifra-status').textContent = 'Carregando músicas…';
+
+    var csFound = 0, csNotFound = 0, csAlready = 0;
+    var notFoundSongs = [];
+    var songs = await (await fetch('@Url.Action("GetSongs","Advanced")')).json();
+    document.getElementById('cs-total').textContent = songs.length;
+
+    for (var i = 0; i < songs.length; i++) {
+        var s = songs[i];
+        document.getElementById('cs-pending').textContent = songs.length - i;
+        document.getElementById('cifra-status').textContent = (i+1) + '/' + songs.length + ' — ' + s.title;
+        setProgress('cifra-prog', i, songs.length);
+
+        if (s.hasCifra) {
+            csAlready++;
+            appendRow('cifra-log','already',s.title,s.artist,'↩ já tem link',s.cifraUrl,'cifraclub ↗');
+        } else {
+            var r = null;
+            try {
+                r = await (await fetch('@Url.Action("EnrichCifra","Advanced")', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({fileName: s.fileName})
+                })).json();
+            } catch(e) {}
+            if (r && r.found) {
+                csFound++;
+                appendRow('cifra-log','found',s.title,s.artist,'✓ encontrado',r.url,'cifraclub ↗');
+            } else if (r && r.skipped) {
+                csAlready++;
+                appendRow('cifra-log','already',s.title,s.artist,'⏭ medley / pot-pourri','','');
+            } else {
+                csNotFound++;
+                notFoundSongs.push({ title: s.title, artist: s.artist, letrasUrl: s.letrasUrl, fileName: s.fileName });
+                appendRow('cifra-log','missing',s.title,s.artist,'– não encontrado','','');
+            }
+        }
+        document.getElementById('cs-found').textContent = csFound;
+        document.getElementById('cs-notfound').textContent = csNotFound;
+        document.getElementById('cs-already').textContent = csAlready;
+        await sleep(150);
+    }
+    setProgress('cifra-prog', songs.length, songs.length);
+    document.getElementById('cs-pending').textContent = '0';
+    document.getElementById('cifra-running').style.display = 'none';
+    document.getElementById('cifra-done').style.display = 'block';
+
+    if (notFoundSongs.length > 0) {
+        var saved = await saveReport('cifra', notFoundSongs);
+        document.getElementById('cifra-report-status').textContent =
+            saved ? '(' + notFoundSongs.length + ' não encontradas — relatório salvo)' : '(falha ao salvar relatório)';
+        document.getElementById('cifra-download-btn').style.display = '';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="20" cy="16" r="3"/></svg> Iniciar novamente';
+    cifraRunning = false;
+}
+
+// ── YouTube enrichment ───────────────────────────────────────────────────
+var ytRunning = false;
+
+async function startYoutube() {
+    if (ytRunning) return;
+    ytRunning = true;
+    var btn = document.getElementById('startYtBtn');
+    btn.disabled = true; btn.textContent = 'Processando…';
+    document.getElementById('yt-download-btn').style.display = 'none';
+    document.getElementById('yt-log').innerHTML = '';
+    document.getElementById('yt-done').style.display = 'none';
+    document.getElementById('yt-running').style.display = 'block';
+    document.getElementById('yt-stats-panel').style.display = 'block';
+    document.getElementById('yt-status').textContent = 'Carregando músicas…';
+
+    var ysFound = 0, ysNotFound = 0, ysAlready = 0;
+    var notFoundSongs = [];
+    var songs = await (await fetch('@Url.Action("GetSongs","Advanced")')).json();
+    document.getElementById('ys-total').textContent = songs.length;
+
+    for (var i = 0; i < songs.length; i++) {
+        var s = songs[i];
+        document.getElementById('ys-pending').textContent = songs.length - i;
+        document.getElementById('yt-status').textContent = (i+1) + '/' + songs.length + ' — ' + s.title;
+        setProgress('yt-prog', i, songs.length);
+
+        if (s.hasYoutube) {
+            ysAlready++;
+            var ytLink = s.youtubeId ? 'https://www.youtube.com/watch?v=' + s.youtubeId : '';
+            appendRow('yt-log','already',s.title,s.artist,'↩ já tem ID',ytLink,'youtube ↗');
+        } else if (!s.letrasUrl) {
+            ysNotFound++;
+            notFoundSongs.push({ title: s.title, artist: s.artist, letrasUrl: '', fileName: s.fileName });
+            appendRow('yt-log','missing',s.title,s.artist,'– sem URL letras.mus.br','','');
+        } else {
+            var r2 = null;
+            try {
+                r2 = await (await fetch('@Url.Action("EnrichYoutube","Advanced")', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({fileName: s.fileName})
+                })).json();
+            } catch(e) {}
+            if (r2 && r2.found) {
+                ysFound++;
+                var ytLink2 = 'https://www.youtube.com/watch?v=' + r2.youtubeId;
+                appendRow('yt-log','found',s.title,s.artist,'✓ encontrado',ytLink2,'youtube ↗');
+            } else {
+                ysNotFound++;
+                notFoundSongs.push({ title: s.title, artist: s.artist, letrasUrl: s.letrasUrl, fileName: s.fileName });
+                appendRow('yt-log','missing',s.title,s.artist,'– não encontrado','','');
+            }
+        }
+        document.getElementById('ys-found').textContent = ysFound;
+        document.getElementById('ys-notfound').textContent = ysNotFound;
+        document.getElementById('ys-already').textContent = ysAlready;
+        await sleep(300);
+    }
+    setProgress('yt-prog', songs.length, songs.length);
+    document.getElementById('ys-pending').textContent = '0';
+    document.getElementById('yt-running').style.display = 'none';
+    document.getElementById('yt-done').style.display = 'block';
+
+    if (notFoundSongs.length > 0) {
+        var saved = await saveReport('youtube', notFoundSongs);
+        document.getElementById('yt-report-status').textContent =
+            saved ? '(' + notFoundSongs.length + ' não encontradas — relatório salvo)' : '(falha ao salvar relatório)';
+        document.getElementById('yt-download-btn').style.display = '';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Iniciar novamente';
+    ytRunning = false;
+}
+</script>
+}

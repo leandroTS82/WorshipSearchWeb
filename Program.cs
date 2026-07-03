@@ -33,10 +33,23 @@ builder.Services.AddSingleton<ISearchRestrictionsService, SearchRestrictionsServ
 builder.Services.AddSingleton<ISearchHistoryService, SearchHistoryService>();
 builder.Services.AddSingleton<IJsonSearchEngine, JsonSearchEngine>();
 builder.Services.AddSingleton<IAppLogger, FileAppLogger>();
+builder.Services.AddSingleton<ISuggestionService, SuggestionService>();
 builder.Services.AddScoped<IQueryExpansionService, QueryExpansionService>();
 builder.Services.AddScoped<ISearchIndexClassifier, SearchIndexClassifierService>();
 builder.Services.AddScoped<ISearchDocumentService, SearchDocumentService>();
 builder.Services.AddScoped<IEscalaRepository, EscalaRepository>();
+builder.Services.AddSingleton<IPopularityService, PopularityService>();
+builder.Services.AddSingleton<IAdditionalSuggestionsService, AdditionalSuggestionsService>();
+builder.Services.AddHttpClient<ICifraClubService, CifraClubService>(client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; WorshipSearch/1.0)");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<IYoutubeService, YoutubeService>(client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
 
 var app = builder.Build();
 
@@ -58,5 +71,9 @@ app.MapControllerRoute(
 var jsonFolder = Path.Combine(app.Environment.ContentRootPath, "json");
 Directory.CreateDirectory(jsonFolder);
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "logs"));
+
+// Pre-warm suggestion cache in background so first request is instant
+var suggestions = app.Services.GetRequiredService<ISuggestionService>();
+_ = suggestions.GetSuggestionsAsync();
 
 app.Run();

@@ -113,22 +113,40 @@
         </div>
     </div>
 
+    <!-- Step 0: Key discovery -->
+    <div id="ea-step-keys" style="display:none">
+        <div class="ws-card" style="padding:24px;text-align:center">
+            <div class="ws-spinner" style="margin:0 auto 14px"></div>
+            <div style="font-weight:500;margin-bottom:6px">Descobrindo pool de chaves…</div>
+            <div style="color:var(--text-muted);font-size:13px" id="ea-keys-status">Aguardando…</div>
+        </div>
+    </div>
+
     <!-- Step 3: Running -->
     <div id="ea-step-running" style="display:none">
-        <div class="ws-card" style="padding:20px;margin-bottom:14px">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <!-- Current song card -->
+        <div class="ws-card" style="padding:18px 20px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
                 <div class="ws-spinner"></div>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="ea-current-title">Aguardando…</div>
-                    <div style="color:var(--text-muted);font-size:13px" id="ea-current-step"></div>
+                    <div style="color:var(--text-muted);font-size:13px;margin-top:2px" id="ea-current-step"></div>
                 </div>
-                <div style="font-size:13px;color:var(--text-muted);white-space:nowrap" id="ea-progress-label"></div>
+                <div style="text-align:right;flex-shrink:0">
+                    <div style="font-size:13px;color:var(--text-muted)" id="ea-progress-label"></div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:2px" id="ea-pool-status"></div>
+                </div>
             </div>
-            <div style="height:6px;border-radius:3px;background:var(--border-card);overflow:hidden">
-                <div id="ea-progress-bar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .3s"></div>
+            <div style="height:5px;border-radius:3px;background:var(--border-card);overflow:hidden">
+                <div id="ea-progress-bar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .4s"></div>
             </div>
         </div>
-        <div id="ea-log" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto"></div>
+
+        <!-- Per-strophe log (current song, clears per song) -->
+        <div id="ea-strophe-log" style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px"></div>
+
+        <!-- Completed songs log -->
+        <div id="ea-song-log" style="display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto"></div>
     </div>
 
     <!-- Step 4: Done -->
@@ -146,18 +164,20 @@
 
 @section Scripts {
 <script>
-var eaScope = 'pending';
-var eaSongs = [];
-var eaDone = 0;
+// ─── State ────────────────────────────────────────────────────────────────────
+var eaScope  = 'pending';
+var eaSongs  = [];
+var eaDone   = 0;
 var eaErrors = 0;
 
+// Key pool: [{ key, masked, rateLimited }]
+var keyPool = [];
+
+// ─── Scope selection ──────────────────────────────────────────────────────────
 function selectScope(scope) {
     eaScope = scope;
     ['pending','all'].forEach(function(s) {
-        var card = document.getElementById('scope-card-' + s);
-        var dot  = document.getElementById('scope-dot-' + s);
-        if (s === scope) { card.classList.add('selected'); }
-        else             { card.classList.remove('selected'); }
+        document.getElementById('scope-card-' + s).classList.toggle('selected', s === scope);
     });
 }
 
@@ -166,52 +186,140 @@ function goBack() {
     document.getElementById('ea-step-scope').style.display = '';
 }
 
+// ─── Load list ────────────────────────────────────────────────────────────────
 function loadList() {
     var btn = document.getElementById('ea-load-btn');
     var origHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="ws-spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle"></span> Carregando…';
 
-    var url = '@Url.Action("GetUnenriched","MusicLibrary")' + (eaScope === 'all' ? '?all=true' : '');
-
-    $.getJSON(url).done(function(data) {
+    $.getJSON('@Url.Action("GetUnenriched","MusicLibrary")' + (eaScope === 'all' ? '?all=true' : '')).done(function(data) {
         eaSongs = data || [];
-        btn.innerHTML = origHtml;
-        btn.disabled = false;
-
+        btn.innerHTML = origHtml; btn.disabled = false;
         document.getElementById('ea-step-scope').style.display = 'none';
-        document.getElementById('ea-step-list').style.display = '';
+        document.getElementById('ea-step-list').style.display  = '';
+        document.getElementById('ea-list-title').textContent =
+            (eaScope === 'all' ? 'Todas as músicas' : 'Músicas sem enriquecimento') + ' — ' + eaSongs.length + ' músicas';
 
-        var scopeLabel = eaScope === 'all' ? 'Todas as músicas' : 'Músicas sem enriquecimento';
-        document.getElementById('ea-list-title').textContent = scopeLabel + ' — ' + eaSongs.length + ' músicas';
-
-        if (eaSongs.length === 0) {
+        if (!eaSongs.length) {
             document.getElementById('ea-list-area').innerHTML =
                 '<div style="padding:30px;text-align:center;color:var(--text-muted);font-size:14px">Nenhuma música encontrada para este escopo.</div>';
             document.getElementById('ea-start-btn').disabled = true;
             return;
         }
-
         var html = '<div class="ws-card" style="overflow:hidden"><table class="ws-table"><thead><tr><th>Título</th><th>Artista</th></tr></thead><tbody>';
         eaSongs.forEach(function(s) {
-            html += '<tr id="ea-row-' + escId(s.fileName) + '">';
-            html += '<td style="font-weight:500">' + escHtml(s.title || '—') + '</td>';
-            html += '<td style="color:var(--text-muted);font-size:13px">' + escHtml(s.artist || '—') + '</td>';
-            html += '</tr>';
+            html += '<tr><td style="font-weight:500">' + escHtml(s.title||'—') + '</td><td style="color:var(--text-muted);font-size:13px">' + escHtml(s.artist||'—') + '</td></tr>';
         });
         html += '</tbody></table></div>';
         document.getElementById('ea-list-area').innerHTML = html;
     }).fail(function() {
-        btn.innerHTML = origHtml;
-        btn.disabled = false;
+        btn.innerHTML = origHtml; btn.disabled = false;
         alert('Erro ao carregar lista. Tente novamente.');
     });
 }
 
-function startEnrichment() {
+// ─── Key pool ─────────────────────────────────────────────────────────────────
+async function discoverKeys() {
     document.getElementById('ea-step-list').style.display = 'none';
+    document.getElementById('ea-step-keys').style.display = '';
+    keyPool = [];
+    var seen = new Set();
+    var maxCalls = 30; // safety cap
+
+    for (var i = 0; i < maxCalls; i++) {
+        try {
+            var r = await $.getJSON('@Url.Action("NextKey","MusicLibrary")');
+            if (seen.has(r.key)) break; // full cycle detected
+            seen.add(r.key);
+            keyPool.push({ key: r.key, masked: r.masked, rateLimited: false });
+            document.getElementById('ea-keys-status').textContent =
+                keyPool.length + ' chave(s) única(s) encontrada(s)…';
+            await sleep(150);
+        } catch(e) { break; }
+    }
+
+    if (!keyPool.length) throw new Error('Nenhuma chave disponível');
+    document.getElementById('ea-step-keys').style.display  = 'none';
     document.getElementById('ea-step-running').style.display = '';
+}
+
+function getRandomKey() {
+    var active = keyPool.filter(function(k){ return !k.rateLimited; });
+    if (!active.length) return null;
+    return active[Math.floor(Math.random() * active.length)];
+}
+
+function markRateLimited(key) {
+    var k = keyPool.find(function(k){ return k.key === key; });
+    if (k) k.rateLimited = true;
+    updatePoolStatus();
+}
+
+function resetRateLimits() {
+    keyPool.forEach(function(k){ k.rateLimited = false; });
+    updatePoolStatus();
+}
+
+function updatePoolStatus() {
+    var active = keyPool.filter(function(k){ return !k.rateLimited; }).length;
+    document.getElementById('ea-pool-status').textContent =
+        keyPool.length + ' chave(s) · ' + active + ' ativa(s)';
+}
+
+async function waitAllRateLimited() {
+    var total = 600; // 10 min
+    for (var s = total; s >= 0; s--) {
+        setStep('Todas as chaves em rate limit — aguardando ' + fmtTime(s) + '…');
+        if (s === 0) break;
+        await sleep(1000);
+    }
+    resetRateLimits();
+}
+
+function fmtTime(secs) {
+    return Math.floor(secs/60) + ':' + (secs%60 < 10 ? '0' : '') + (secs%60);
+}
+
+// ─── Enrichment call with key pool ────────────────────────────────────────────
+async function callWithPool(ajaxOpts, entryId) {
+    while (true) {
+        var keyEntry = getRandomKey();
+        if (!keyEntry) await waitAllRateLimited();
+        keyEntry = getRandomKey();
+
+        // Inject key into request body
+        try {
+            var body = JSON.parse(ajaxOpts.data || '{}');
+            body.key = keyEntry.key;
+            ajaxOpts.data = JSON.stringify(body);
+        } catch(_) {}
+
+        // Update strophe entry with chosen key
+        if (entryId) updateStropheKey(entryId, keyEntry.masked);
+
+        try {
+            return await $.ajax(ajaxOpts);
+        } catch(jqXHR) {
+            var status = jqXHR ? jqXHR.status : 0;
+            var errJson = {}; try { errJson = JSON.parse(jqXHR.responseText||'{}'); } catch(_) {}
+            var errMsg = errJson.error || '';
+            var isRL = status === 429 || (status === 500 && errMsg.toLowerCase().indexOf('toomanyrequests') >= 0);
+            if (isRL) {
+                markRateLimited(keyEntry.key);
+                if (entryId) updateStropheStatus(entryId, 'rl', 'rate limit — nova chave…');
+                continue; // retry immediately with next key
+            }
+            throw jqXHR;
+        }
+    }
+}
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+async function startEnrichment() {
     eaDone = 0; eaErrors = 0;
+    await discoverKeys();
+    updatePoolStatus();
     processAll();
 }
 
@@ -219,25 +327,28 @@ async function processAll() {
     for (var i = 0; i < eaSongs.length; i++) {
         var song = eaSongs[i];
         setProgress(i, eaSongs.length, song.title);
-        var ok = await processSong(song);
-        if (ok) eaDone++; else eaErrors++;
-        appendLog(song, ok);
+        var result = await processSong(song);
+        if (result.ok) eaDone++; else eaErrors++;
+        appendSongLog(song, result.ok, result.error);
+        if (i < eaSongs.length - 1) await sleep(1200);
     }
     setProgress(eaSongs.length, eaSongs.length, '');
     document.getElementById('ea-step-running').style.display = 'none';
-    document.getElementById('ea-step-done').style.display = '';
+    document.getElementById('ea-step-done').style.display    = '';
     document.getElementById('ea-done-title').textContent = eaDone + ' música(s) enriquecida(s)';
-    if (eaErrors > 0) document.getElementById('ea-done-sub').textContent = eaErrors + ' erro(s) — essas músicas mantêm os dados anteriores.';
-    else document.getElementById('ea-done-sub').textContent = 'Tudo pronto! Revise as músicas na biblioteca antes de aprovar.';
+    document.getElementById('ea-done-sub').textContent = eaErrors > 0
+        ? eaErrors + ' erro(s) — essas músicas mantêm os dados anteriores.'
+        : 'Tudo pronto! Revise as músicas na biblioteca antes de aprovar.';
 }
 
 async function processSong(song) {
     try {
         setStep('Carregando dados…');
-        var doc = await $.getJSON('@Url.Action("Load","MusicEditor")' + '?fileName=' + encodeURIComponent(song.fileName));
+        document.getElementById('ea-strophe-log').innerHTML = '';
 
+        var doc = await $.getJSON('@Url.Action("Load","MusicEditor")' + '?fileName=' + encodeURIComponent(song.fileName));
         var paragraphs = getUniqueParagraphs(doc.lyrics);
-        if (!paragraphs.length) return false;
+        if (!paragraphs.length) return { ok: false, error: 'sem letra' };
 
         var acc = {
             themes:[], moods:[], contexts:[], keywords:[],
@@ -247,13 +358,20 @@ async function processSong(song) {
         };
 
         for (var j = 0; j < paragraphs.length; j++) {
-            setStep('Estrofe ' + (j+1) + '/' + paragraphs.length + '…');
+            var label  = 'Estrofe ' + (j+1) + '/' + paragraphs.length;
+            var chars  = paragraphs[j].length;
+            var eid    = 'strophe-' + j;
+            appendStropheEntry(eid, label, chars);
+            setStep(label + '…');
+
             try {
-                var tags = await $.ajax({
+                var tags = await callWithPool({
                     url: '@Url.Action("EnrichParagraph","MusicIndex")',
                     method: 'POST', contentType: 'application/json',
                     data: JSON.stringify({ paragraph: paragraphs[j], title: doc.title, artist: doc.artist, existing_tags: acc })
-                });
+                }, eid);
+
+                updateStropheStatus(eid, 'ok');
                 ['themes','moods','contexts','keywords','biblical_topics','biblical_references','biblical_books','biblical_characters','synonyms','worship_moments'].forEach(function(f){
                     var added = (tags[f]||[]).filter(function(v){ return v && !acc[f].some(function(e){ return e.toLowerCase()===v.toLowerCase(); }); });
                     acc[f] = acc[f].concat(added);
@@ -261,77 +379,111 @@ async function processSong(song) {
                 if (!acc.worship_style && tags.worship_style) acc.worship_style = tags.worship_style;
                 if (!acc.energy_level  && tags.energy_level)  acc.energy_level  = tags.energy_level;
                 if (!acc.occasion      && tags.occasion)       acc.occasion      = tags.occasion;
-            } catch(e) { /* continue */ }
+            } catch(e) {
+                updateStropheStatus(eid, 'err', 'falhou — pulando');
+            }
         }
 
+        // Summary
+        var sumId = 'strophe-sum';
+        appendStropheEntry(sumId, 'Resumo', 0);
         setStep('Gerando resumo…');
         doc.search = acc;
         try {
-            var summary = await $.ajax({
+            var summary = await callWithPool({
                 url: '@Url.Action("EnrichSummary","MusicIndex")',
                 method: 'POST', contentType: 'application/json', data: JSON.stringify(doc)
-            });
+            }, sumId);
+            updateStropheStatus(sumId, 'ok');
             doc.summary = summary.summary || doc.summary;
             doc.explanation = summary.explanation || doc.explanation;
             doc.practical_application = summary.practical_application || doc.practical_application;
-            // Apply summary-level search fields (full-context is more reliable than per-paragraph)
-            if (summary.worship_style)   doc.search.worship_style  = summary.worship_style;
-            if (summary.energy_level)    doc.search.energy_level   = summary.energy_level;
-            if (summary.occasion)        doc.search.occasion        = summary.occasion;
+            if (summary.worship_style)  doc.search.worship_style  = summary.worship_style;
+            if (summary.energy_level)   doc.search.energy_level   = summary.energy_level;
+            if (summary.occasion)       doc.search.occasion        = summary.occasion;
             if (summary.worship_moments && summary.worship_moments.length)
                 doc.search.worship_moments = summary.worship_moments;
-        } catch(e) { /* summary optional */ }
+        } catch(e) { updateStropheStatus(sumId, 'err', 'resumo falhou'); }
 
         setStep('Salvando…');
         await $.ajax({
             url: '@Url.Action("Save","MusicEditor")' + '?fileName=' + encodeURIComponent(song.fileName),
             method: 'POST', contentType: 'application/json', data: JSON.stringify(doc)
         });
-
-        return true;
+        return { ok: true };
     } catch(e) {
-        return false;
+        var msg = ''; try { msg = JSON.parse(e.responseText||'{}').error || e.statusText || 'erro'; } catch(_) { msg = 'erro'; }
+        return { ok: false, error: msg };
     }
 }
 
+// ─── UI helpers ───────────────────────────────────────────────────────────────
 function setProgress(done, total, title) {
-    document.getElementById('ea-current-title').textContent = done < total ? (title || '…') : 'Finalizando…';
+    document.getElementById('ea-current-title').textContent = done < total ? (title||'…') : 'Finalizando…';
     document.getElementById('ea-progress-label').textContent = done + ' / ' + total;
-    document.getElementById('ea-progress-bar').style.width = total > 0 ? (done / total * 100) + '%' : '0%';
+    document.getElementById('ea-progress-bar').style.width = total > 0 ? (done/total*100)+'%' : '0%';
 }
 
-function setStep(msg) {
-    document.getElementById('ea-current-step').textContent = msg;
+function setStep(msg) { document.getElementById('ea-current-step').textContent = msg; }
+
+// Strophe log entries
+function appendStropheEntry(id, label, chars) {
+    var el = document.createElement('div');
+    el.id = id;
+    el.style.cssText = 'display:grid;grid-template-columns:130px 1fr auto auto;align-items:center;gap:10px;font-size:12.5px;padding:7px 12px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-card)';
+    var charsHtml = chars > 0
+        ? '<span style="color:var(--text-dim);font-size:11px">' + chars + ' chars</span>'
+        : '<span style="color:var(--text-dim);font-size:11px">—</span>';
+    el.innerHTML =
+        '<span style="font-weight:500;color:var(--text-sub)">' + escHtml(label) + '</span>' +
+        '<span class="ea-se-key" style="font-family:monospace;font-size:11.5px;color:var(--text-dim)">—</span>' +
+        charsHtml +
+        '<span class="ea-se-status" style="font-size:11px;color:var(--text-dim)">⟳</span>';
+    document.getElementById('ea-strophe-log').appendChild(el);
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function appendLog(song, ok) {
+function updateStropheKey(id, masked) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.querySelector('.ea-se-key').textContent = masked || '—';
+}
+
+function updateStropheStatus(id, state, msg) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var st = el.querySelector('.ea-se-status');
+    if (state === 'ok')  { st.textContent = '✓'; st.style.color = '#69d18a'; }
+    if (state === 'err') { st.textContent = '✗ ' + (msg||''); st.style.color = '#ff8a80'; }
+    if (state === 'rl')  { st.textContent = '⟳ ' + (msg||''); st.style.color = 'var(--accent)'; }
+}
+
+function appendSongLog(song, ok, errorMsg) {
     var color = ok ? '#69d18a' : '#ff8a80';
-    var icon = ok
-        ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
-        : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    var entry = document.createElement('div');
-    entry.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 10px;border-radius:8px;background:var(--bg-card);color:' + color;
-    entry.innerHTML = icon + ' ' + escHtml(song.title || song.fileName);
-    document.getElementById('ea-log').appendChild(entry);
-    entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    var icon  = ok
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    var el = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;gap:7px;font-size:12.5px;padding:5px 10px;border-radius:7px;background:var(--bg-card);color:' + color;
+    el.innerHTML = '<span style="flex-shrink:0">' + icon + '</span><span>' + escHtml(song.title||song.fileName) + '</span>'
+        + (!ok && errorMsg ? '<span style="font-size:11px;opacity:.7;margin-left:4px">— ' + escHtml(errorMsg) + '</span>' : '');
+    var log = document.getElementById('ea-song-log');
+    log.appendChild(el);
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+// ─── Utilities ────────────────────────────────────────────────────────────────
 function getUniqueParagraphs(lyrics) {
-    var all = (lyrics || '').split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
+    var all = (lyrics||'').split(/\n\s*\n/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 10; });
     var seen = {}, unique = [];
     all.forEach(function(p) {
-        var key = p.toLowerCase().replace(/\s+/g,' ').trim();
-        if (!seen[key]) { seen[key] = true; unique.push(p); }
+        var k = p.toLowerCase().replace(/\s+/g,' ').trim();
+        if (!seen[k]) { seen[k] = true; unique.push(p); }
     });
     return unique;
 }
 
-function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function escId(s) {
-    return String(s).replace(/[^a-zA-Z0-9-_]/g, '_');
-}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escId(s)   { return String(s).replace(/[^a-zA-Z0-9-_]/g,'_'); }
 </script>
 }

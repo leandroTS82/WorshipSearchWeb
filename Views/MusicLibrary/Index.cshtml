@@ -1,11 +1,10 @@
 @model List<WorshipSearchWeb.Models.LibrarySearchResult>
 @{
     ViewData["Title"] = "Biblioteca";
-    var query        = ViewBag.Query as string ?? "";
-    var approvedOnly = (bool)(ViewBag.ApprovedOnly ?? false);
-    var currentPage  = (int)(ViewBag.CurrentPage  ?? 1);
-    var totalPages   = (int)(ViewBag.TotalPages   ?? 1);
-    var totalCount   = (int)(ViewBag.TotalCount   ?? Model.Count);
+    var query       = ViewBag.Query as string ?? "";
+    var currentPage = (int)(ViewBag.CurrentPage ?? 1);
+    var totalPages  = (int)(ViewBag.TotalPages  ?? 1);
+    var totalCount  = (int)(ViewBag.TotalCount  ?? Model.Count);
 }
 
 <style>
@@ -28,7 +27,7 @@
             </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="@Url.Action("EnrichAll","MusicLibrary")" class="ws-btn ws-btn-ghost ws-btn-sm">
+            <a href="@Url.Action("Index","Advanced")" class="ws-btn ws-btn-ghost ws-btn-sm">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
                 Enriquecer em lote
             </a>
@@ -58,10 +57,6 @@
         {
             <a href="@Url.Action("Index","MusicLibrary")" class="ws-btn ws-btn-ghost ws-btn-sm">Limpar</a>
         }
-        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--text-muted);cursor:pointer;white-space:nowrap">
-            <input type="checkbox" name="approvedOnly" value="true" @(approvedOnly ? "checked" : "") onchange="this.form.submit()" style="accent-color:var(--accent)" />
-            Apenas aprovadas
-        </label>
     </form>
 
     @if (!string.IsNullOrWhiteSpace(query))
@@ -92,7 +87,6 @@
                             <th class="lib-col-artist">Artista</th>
                             <th class="lib-col-themes">Temas</th>
                             <th class="lib-col-moods">Emoções</th>
-                            <th style="width:110px">Status</th>
                             <th style="width:80px"></th>
                         </tr>
                     </thead>
@@ -113,7 +107,9 @@
                                         </div>
                                     }
                                 </td>
-                                <td style="font-weight:500">@doc.Title</td>
+                                <td style="font-weight:500">
+                                    <a href="@Url.Action("SongView","MusicEditor", new { fileName = item.FileName })" style="text-decoration:none;color:inherit">@doc.Title</a>
+                                </td>
                                 <td class="lib-col-artist" style="color:var(--text-muted);font-size:13px">@doc.Artist</td>
                                 <td class="lib-col-themes">
                                     <div style="display:flex;flex-wrap:wrap;gap:4px">
@@ -132,23 +128,28 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <button class="ws-btn ws-btn-sm toggle-approved @(doc.Approved ? "" : "ws-btn-ghost")"
-                                            style="@(doc.Approved ? "background:rgba(60,180,90,0.15);border:1px solid rgba(60,180,90,0.25);color:#69d18a" : "")"
-                                            data-filename="@item.FileName">
-                                        @(doc.Approved ? "✓ Aprovada" : "Revisar")
-                                    </button>
-                                </td>
-                                <td>
                                     <div style="display:flex;gap:6px;justify-content:flex-end">
                                         <a href="@Url.Action("Edit","MusicEditor", new { fileName = item.FileName })" class="ws-btn ws-btn-ghost ws-btn-sm" title="Editar">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                         </a>
+                                        @if (!string.IsNullOrWhiteSpace(doc.Metadata?.YoutubeId))
+                                        {
+                                            <button type="button" class="ws-btn ws-btn-ghost ws-btn-sm" style="color:#e53"
+                                                onclick="openYtModal('@doc.Metadata.YoutubeId',@(System.Text.Json.JsonSerializer.Serialize(doc.Title)),@(System.Text.Json.JsonSerializer.Serialize(doc.Artist)),@(System.Text.Json.JsonSerializer.Serialize(doc.Metadata?.CanonicalUrl??"")),@(System.Text.Json.JsonSerializer.Serialize(doc.Metadata?.CifraClubUrl??"")))"
+                                                title="Ver no YouTube">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                            </button>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(doc.Metadata?.CifraClubUrl))
+                                        {
+                                            <a href="@doc.Metadata.CifraClubUrl" target="_blank" rel="noopener" class="ws-btn ws-btn-ghost ws-btn-sm" title="Ver cifra (CifraClub)">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="20" cy="16" r="3"/></svg>
+                                            </a>
+                                        }
                                         <button type="button" class="ws-btn ws-btn-ghost ws-btn-sm"
-                                                data-ext-title="@doc.Title"
-                                                data-ext-artist="@doc.Artist"
-                                                data-ext-letras="@(doc.Metadata?.CanonicalUrl ?? "")"
-                                                title="Letras e Cifras">
-                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                            onclick="shareCard(@(System.Text.Json.JsonSerializer.Serialize(doc.Title)),@(System.Text.Json.JsonSerializer.Serialize(doc.Artist)),@(System.Text.Json.JsonSerializer.Serialize(doc.Metadata?.CanonicalUrl??"")),@(System.Text.Json.JsonSerializer.Serialize(doc.Metadata?.CifraClubUrl??"")),@(System.Text.Json.JsonSerializer.Serialize(doc.Metadata?.YoutubeId??"")))"
+                                            title="Compartilhar">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                                         </button>
                                         <button class="ws-btn ws-btn-danger ws-btn-sm delete-btn" data-filename="@item.FileName" title="Excluir">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
@@ -165,10 +166,10 @@
         @if (totalPages > 1)
         {
             var prevUrl = currentPage > 1
-                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, approvedOnly = approvedOnly ? (bool?)true : null, page = currentPage - 1 })
+                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, page = currentPage - 1 })
                 : null;
             var nextUrl = currentPage < totalPages
-                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, approvedOnly = approvedOnly ? (bool?)true : null, page = currentPage + 1 })
+                ? Url.Action("Index", "MusicLibrary", new { q = string.IsNullOrWhiteSpace(query) ? null : query, page = currentPage + 1 })
                 : null;
 
             <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:22px;flex-wrap:wrap">
@@ -197,22 +198,32 @@
 
 @section Scripts {
 <script>
-$('.toggle-approved').click(function(){
-    var btn = $(this);
-    var fileName = btn.data('filename');
-    var origHtml = btn.html();
-    btn.prop('disabled', true).html('<span class="ws-spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;vertical-align:middle"></span>');
-    $.post('@Url.Action("ToggleApproved","MusicLibrary")', { fileName: fileName }, function(r){
-        if (r.approved) {
-            btn.attr('style', 'background:rgba(60,180,90,0.15);border:1px solid rgba(60,180,90,0.25);color:#69d18a').removeClass('ws-btn-ghost').text('✓ Aprovada');
-        } else {
-            btn.attr('style', '').addClass('ws-btn-ghost').text('Revisar');
-        }
-        btn.prop('disabled', false);
-    }).fail(function(){
-        btn.html(origHtml).prop('disabled', false);
-    });
-});
+function openYtModal(ytId, title, artist, letras, cifra) {
+    var m = document.getElementById('yt-lib-modal');
+    if (!m) return;
+    document.getElementById('yt-lib-iframe').src = 'https://www.youtube.com/embed/' + ytId + '?autoplay=1';
+    m.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeYtModal() {
+    var m = document.getElementById('yt-lib-modal');
+    if (m) { m.style.display = 'none'; document.getElementById('yt-lib-iframe').src = ''; }
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeYtModal(); });
+
+function shareCard(title, artist, letras, cifra, ytId) {
+    var parts = [title + ' — ' + artist];
+    if (letras) parts.push('Letra: ' + letras);
+    if (cifra)  parts.push('Cifra: ' + cifra);
+    if (ytId)   parts.push('YouTube: https://www.youtube.com/watch?v=' + ytId);
+    var text = parts.join('\n');
+    if (navigator.share) {
+        navigator.share({ title: title, text: text }).catch(function(){});
+    } else {
+        navigator.clipboard.writeText(text).catch(function(){});
+    }
+}
 
 $('.delete-btn').click(function(){
     if (!confirm('Excluir esta música da biblioteca?')) return;
@@ -228,4 +239,11 @@ $('.delete-btn').click(function(){
     });
 });
 </script>
+
+<div id="yt-lib-modal" onclick="closeYtModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9000;align-items:center;justify-content:center">
+    <div onclick="event.stopPropagation()" style="position:relative;width:min(680px,94vw);aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.7)">
+        <iframe id="yt-lib-iframe" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" style="position:absolute;inset:0;width:100%;height:100%"></iframe>
+        <button onclick="closeYtModal()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;line-height:32px;text-align:center">×</button>
+    </div>
+</div>
 }

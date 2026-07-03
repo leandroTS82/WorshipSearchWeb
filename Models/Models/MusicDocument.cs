@@ -100,6 +100,33 @@ public class MusicMetadata
     [JsonPropertyName("indexed_at")]
     public string IndexedAt { get; set; } = string.Empty;
 
+    [JsonPropertyName("youtube_id")]
+    public string YoutubeId { get; set; } = string.Empty;
+
     [JsonPropertyName("youtube_url")]
     public string YoutubeUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("cifraclub_url")]
+    public string CifraClubUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("cifraclub_dns")]
+    public string CifraclubDns { get; set; } = string.Empty;
+
+    [JsonPropertyName("cifraclub_slug")]
+    public string CifraclubSlug { get; set; } = string.Empty;
+
+    [JsonPropertyName("cifraclub_id_song")]
+    public string CifraclubIdSong { get; set; } = string.Empty;
+
+    [JsonPropertyName("cifraclub_id_artist")]
+    public string CifraclubIdArtist { get; set; } = string.Empty;
+
+    [JsonPropertyName("cifraclub_matched_title")]
+    public string CifraclubMatchedTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("cifraclub_matched_artist")]
+    public string CifraclubMatchedArtist { get; set; } = string.Empty;
+
+    [JsonPropertyName("cifraclub_score")]
+    public string CifraclubScore { get; set; } = string.Empty;
 }

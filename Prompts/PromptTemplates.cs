@@ -2,7 +2,7 @@ namespace WorshipSearchWeb.Prompts;
 
 public static class PromptTemplates
 {
-    public const string ParagraphEnrichmentTemplate = @"Você é um indexador de músicas cristãs de louvor e adoração em português (pt-BR).
+    public const string ParagraphEnrichmentTemplate = @"Você é um indexador de músicas cristã/evangélicas de louvor e adoração em português (pt-BR).
 
 Música: ""{title}"" — {artist}
 
@@ -32,14 +32,15 @@ REGRAS:
 - Sempre dentro do contexto cristão/evangélico
 - Sem textos longos, apenas termos de busca objetivos
 - Não repita tags já listadas
-- worship_moments: use apenas valores desta lista exata: Celebração, Adoração, Santa Ceia, Apelo, Intercessão, Ofertório, Abertura, Encerramento
+- worship_moments: use apenas valores desta lista exata: Adoração, Santa Ceia, Apelo, Intercessão, Ofertório, Abertura, Encerramento
+nota: para definiçãodo worship_moments, considere o momento do culto em que a estrofe se encaixda ao sacrifício de cristo, ressureição de cristo, partir do pão e beber do calice, um contexto do culto onde iremos celebrar a ceia.
 
 Retorne um objeto JSON com estes campos exatos. Use [] ou """" para campos sem novidades:
 themes, moods, contexts, keywords, biblical_topics, biblical_references, biblical_books, biblical_characters, synonyms, worship_style, energy_level, occasion, worship_moments
 
 Retorne APENAS o JSON, sem texto extra.";
 
-    public const string QueryExpansionTemplate = @"Você é um assistente de busca de músicas cristãs em português (pt-BR).
+    public const string QueryExpansionTemplate = @"Você é um assistente de busca de músicas cristã/evangélicas em português (pt-BR).
 
 O usuário quer encontrar músicas relacionadas a:
 {criteria_list}

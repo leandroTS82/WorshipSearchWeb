@@ -1,4 +1,5 @@
 using HtmlAgilityPack;
+using System.Text.RegularExpressions;
 
 namespace WorshipSearchWeb.Services;
 
@@ -11,6 +12,7 @@ public class ParsedMusic
     public string Description { get; set; } = string.Empty;
     public string Lyrics { get; set; } = string.Empty;
     public string Genre { get; set; } = string.Empty;
+    public string YoutubeId { get; set; } = string.Empty;
 }
 
 public interface IMusicHtmlParser
@@ -77,7 +79,16 @@ public class MusicHtmlParser : IMusicHtmlParser
             _logger.LogWarning("Could not find lyrics node in {Url}", url);
         }
 
+        result.YoutubeId = ExtractYoutubeId(html);
+
         return result;
+    }
+
+    public static string ExtractYoutubeId(string html)
+    {
+        // Extracts YoutubeID from letras.mus.br page script: "YoutubeID":"XXXXXXXXXXX"
+        var m = Regex.Match(html, @"""YoutubeID""\s*:\s*""([^""]{5,20})""");
+        return m.Success ? m.Groups[1].Value : string.Empty;
     }
 
     private static string ParseLyrics(HtmlNode node)

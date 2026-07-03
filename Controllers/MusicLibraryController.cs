@@ -8,22 +8,23 @@ public class MusicLibraryController : Controller
 {
     private readonly IMusicRepository _repository;
     private readonly IJsonSearchEngine _searchEngine;
+    private readonly ILlmKeyService _llmKeyService;
 
-    public MusicLibraryController(IMusicRepository repository, IJsonSearchEngine searchEngine)
+    public MusicLibraryController(IMusicRepository repository, IJsonSearchEngine searchEngine, ILlmKeyService llmKeyService)
     {
         _repository = repository;
         _searchEngine = searchEngine;
+        _llmKeyService = llmKeyService;
     }
 
-    public async Task<IActionResult> Index(string? q, bool approvedOnly = false, int page = 1)
+    public async Task<IActionResult> Index(string? q, int page = 1)
     {
         const int pageSize = 50;
         page = Math.Max(1, page);
-        var query = new SearchQuery { Query = q ?? string.Empty, ApprovedOnly = approvedOnly, Page = page, PageSize = pageSize };
+        var query = new SearchQuery { Query = q ?? string.Empty, Page = page, PageSize = pageSize };
         var results = await _searchEngine.SearchAsync(query);
-        var total   = await _searchEngine.CountAsync(new SearchQuery { Query = q ?? string.Empty, ApprovedOnly = approvedOnly });
+        var total   = await _searchEngine.CountAsync(new SearchQuery { Query = q ?? string.Empty });
         ViewBag.Query        = q;
-        ViewBag.ApprovedOnly = approvedOnly;
         ViewBag.CurrentPage  = page;
         ViewBag.PageSize     = pageSize;
         ViewBag.TotalCount   = total;
@@ -36,17 +37,6 @@ public class MusicLibraryController : Controller
     {
         await _repository.DeleteAsync(fileName);
         return Json(new { success = true });
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> ToggleApproved(string fileName)
-    {
-        var doc = await _repository.LoadAsync(fileName);
-        if (doc == null) return NotFound();
-
-        doc.Approved = !doc.Approved;
-        await _repository.SaveAsync(doc);
-        return Json(new { success = true, approved = doc.Approved });
     }
 
     [HttpGet]
@@ -63,6 +53,13 @@ public class MusicLibraryController : Controller
     }
 
     public IActionResult EnrichAll() => View();
+
+    [HttpGet]
+    public async Task<IActionResult> NextKey()
+    {
+        var key = await _llmKeyService.GetGroqKeyAsync();
+        return Json(new { key, masked = GroqService.MaskKey(key) });
+    }
 
     [HttpGet]
     public async Task<IActionResult> Stats()

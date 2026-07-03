@@ -8,8 +8,8 @@ namespace WorshipSearchWeb.Services;
 
 public interface IMusicEnrichmentService
 {
-    Task<SearchMetadata> EnrichParagraphAsync(string paragraph, string title, string artist, SearchMetadata existing);
-    Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion, List<string> WorshipMoments)> EnrichSummaryAsync(MusicDocument doc);
+    Task<(SearchMetadata Tags, string KeyUsed)> EnrichParagraphAsync(string paragraph, string title, string artist, SearchMetadata existing, string? key = null);
+    Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion, List<string> WorshipMoments, string KeyUsed)> EnrichSummaryAsync(MusicDocument doc, string? key = null);
 }
 
 public class MusicEnrichmentService : IMusicEnrichmentService
@@ -28,13 +28,13 @@ public class MusicEnrichmentService : IMusicEnrichmentService
         _appLogger = appLogger;
     }
 
-    public async Task<SearchMetadata> EnrichParagraphAsync(string paragraph, string title, string artist, SearchMetadata existing)
+    public async Task<(SearchMetadata Tags, string KeyUsed)> EnrichParagraphAsync(string paragraph, string title, string artist, SearchMetadata existing, string? key = null)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var prompt = _promptBuilder.BuildParagraphPrompt(paragraph, title, artist, existing);
-            var response = await _groqService.CompleteAsync(prompt);
+            var (response, keyUsed) = await _groqService.CompleteAsync(prompt, providedKey: key);
             var result = ParseTagsOnly(response);
             await _appLogger.InfoAsync("enrich_paragraph", new
             {
@@ -47,7 +47,7 @@ public class MusicEnrichmentService : IMusicEnrichmentService
                 worship_mom = result.WorshipMoments.Count,
                 ok          = true
             });
-            return result;
+            return (result, keyUsed);
         }
         catch (Exception ex)
         {
@@ -56,13 +56,13 @@ public class MusicEnrichmentService : IMusicEnrichmentService
         }
     }
 
-    public async Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion, List<string> WorshipMoments)> EnrichSummaryAsync(MusicDocument doc)
+    public async Task<(string Summary, string Explanation, string PracticalApplication, string WorshipStyle, string EnergyLevel, string Occasion, List<string> WorshipMoments, string KeyUsed)> EnrichSummaryAsync(MusicDocument doc, string? key = null)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var prompt = _promptBuilder.BuildSummaryPrompt(doc);
-            var response = await _groqService.CompleteAsync(prompt);
+            var (response, keyUsed) = await _groqService.CompleteAsync(prompt, providedKey: key);
 
             var cleaned = StripMarkdown(response);
             // Extract JSON object — LLM may add prose before/after the braces
@@ -71,37 +71,35 @@ public class MusicEnrichmentService : IMusicEnrichmentService
             if (start < 0 || end <= start)
             {
                 await _appLogger.WarnAsync("enrich_summary_no_json", new { song = $"{doc.Title} — {doc.Artist}", elapsed_ms = sw.ElapsedMilliseconds, preview = cleaned[..Math.Min(120, cleaned.Length)] });
-                return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new());
+                return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new(), keyUsed);
             }
 
             var node = JsonNode.Parse(cleaned[start..(end + 1)]);
             if (node == null)
             {
                 await _appLogger.WarnAsync("enrich_summary_parse_null", new { song = $"{doc.Title} — {doc.Artist}", elapsed_ms = sw.ElapsedMilliseconds });
-                return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new());
+                return (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new(), keyUsed);
             }
 
-            var result = (
-                node["summary"]?.GetValue<string>() ?? string.Empty,
-                node["explanation"]?.GetValue<string>() ?? string.Empty,
-                node["practical_application"]?.GetValue<string>() ?? string.Empty,
-                node["worship_style"]?.GetValue<string>() ?? string.Empty,
-                node["energy_level"]?.GetValue<string>() ?? string.Empty,
-                node["occasion"]?.GetValue<string>() ?? string.Empty,
-                ParseArray(node["worship_moments"])
-            );
+            var summary       = node["summary"]?.GetValue<string>() ?? string.Empty;
+            var explanation   = node["explanation"]?.GetValue<string>() ?? string.Empty;
+            var practical     = node["practical_application"]?.GetValue<string>() ?? string.Empty;
+            var worshipStyle  = node["worship_style"]?.GetValue<string>() ?? string.Empty;
+            var energyLevel   = node["energy_level"]?.GetValue<string>() ?? string.Empty;
+            var occasion      = node["occasion"]?.GetValue<string>() ?? string.Empty;
+            var moments       = ParseArray(node["worship_moments"]);
 
             await _appLogger.InfoAsync("enrich_summary", new
             {
-                song           = $"{doc.Title} — {doc.Artist}",
-                elapsed_ms     = sw.ElapsedMilliseconds,
-                has_summary    = !string.IsNullOrEmpty(result.Item1),
-                worship_style  = result.Item4,
-                energy_level   = result.Item5,
-                worship_moments = result.Item7.Count,
-                ok             = true
+                song            = $"{doc.Title} — {doc.Artist}",
+                elapsed_ms      = sw.ElapsedMilliseconds,
+                has_summary     = !string.IsNullOrEmpty(summary),
+                worship_style   = worshipStyle,
+                energy_level    = energyLevel,
+                worship_moments = moments.Count,
+                ok              = true
             });
-            return result;
+            return (summary, explanation, practical, worshipStyle, energyLevel, occasion, moments, keyUsed);
         }
         catch (Exception ex)
         {
