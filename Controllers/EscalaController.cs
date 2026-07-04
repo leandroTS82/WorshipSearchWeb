@@ -18,9 +18,11 @@ public class EscalaController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? view = null)
     {
         var docs = await _escala.LoadAllAsync();
+        if (!string.IsNullOrEmpty(view))
+            ViewBag.AutoViewId = view;
         return View(docs);
     }
 
@@ -120,6 +122,15 @@ public class EscalaController : Controller
     public async Task<IActionResult> Ministros()
     {
         return Json(await _escala.GetMinistrosAsync());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Lyrics(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return Json(new { lyrics = string.Empty });
+        var doc = await _musicRepo.LoadAsync(fileName);
+        return Json(new { lyrics = doc?.Lyrics ?? string.Empty });
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
