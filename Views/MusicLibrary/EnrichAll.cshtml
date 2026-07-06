@@ -207,9 +207,18 @@ function loadList() {
             document.getElementById('ea-start-btn').disabled = true;
             return;
         }
-        var html = '<div class="ws-card" style="overflow:hidden"><table class="ws-table"><thead><tr><th>Título</th><th>Artista</th></tr></thead><tbody>';
-        eaSongs.forEach(function(s) {
-            html += '<tr><td style="font-weight:500">' + escHtml(s.title||'—') + '</td><td style="color:var(--text-muted);font-size:13px">' + escHtml(s.artist||'—') + '</td></tr>';
+        var html = '<div class="ws-card" style="overflow:hidden"><table class="ws-table"><thead><tr><th>Título</th><th>Artista</th><th style="width:170px"></th></tr></thead><tbody>';
+        eaSongs.forEach(function(s, i) {
+            html += '<tr id="ea-row-' + i + '">'
+                + '<td style="font-weight:500">' + escHtml(s.title||'—') + '</td>'
+                + '<td style="color:var(--text-muted);font-size:13px">' + escHtml(s.artist||'—') + '</td>'
+                + '<td><div style="display:flex;align-items:center;gap:8px;white-space:nowrap">'
+                + '<button class="ws-btn ws-btn-ghost ws-btn-sm" style="padding:3px 10px;font-size:12px" onclick="enrichOne(this,' + i + ')" title="Enriquecer esta música">'
+                + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="flex-shrink:0"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.87L12 17.77l-6.18 3.27L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'
+                + ' Enriquecer</button>'
+                + '<span class="ea-row-status" style="font-size:11.5px"></span>'
+                + '</div></td>'
+                + '</tr>';
         });
         html += '</tbody></table></div>';
         document.getElementById('ea-list-area').innerHTML = html;
@@ -220,26 +229,31 @@ function loadList() {
 }
 
 // ─── Key pool ─────────────────────────────────────────────────────────────────
+async function initKeyPool(onProgress) {
+    if (keyPool.length) return;
+    var seen = new Set();
+    var maxCalls = 30;
+    for (var i = 0; i < maxCalls; i++) {
+        try {
+            var r = await $.getJSON('@Url.Action("NextKey","MusicLibrary")');
+            if (seen.has(r.key)) break;
+            seen.add(r.key);
+            keyPool.push({ key: r.key, masked: r.masked, rateLimited: false });
+            if (onProgress) onProgress(keyPool.length);
+            await sleep(150);
+        } catch(e) { break; }
+    }
+    if (!keyPool.length) throw new Error('Nenhuma chave disponível');
+}
+
 async function discoverKeys() {
     document.getElementById('ea-step-list').style.display = 'none';
     document.getElementById('ea-step-keys').style.display = '';
     keyPool = [];
-    var seen = new Set();
-    var maxCalls = 30; // safety cap
-
-    for (var i = 0; i < maxCalls; i++) {
-        try {
-            var r = await $.getJSON('@Url.Action("NextKey","MusicLibrary")');
-            if (seen.has(r.key)) break; // full cycle detected
-            seen.add(r.key);
-            keyPool.push({ key: r.key, masked: r.masked, rateLimited: false });
-            document.getElementById('ea-keys-status').textContent =
-                keyPool.length + ' chave(s) única(s) encontrada(s)…';
-            await sleep(150);
-        } catch(e) { break; }
-    }
-
-    if (!keyPool.length) throw new Error('Nenhuma chave disponível');
+    await initKeyPool(function(count) {
+        document.getElementById('ea-keys-status').textContent =
+            count + ' chave(s) única(s) encontrada(s)…';
+    });
     document.getElementById('ea-step-keys').style.display  = 'none';
     document.getElementById('ea-step-running').style.display = '';
 }
@@ -496,5 +510,49 @@ function getUniqueParagraphs(lyrics) {
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escId(s)   { return String(s).replace(/[^a-zA-Z0-9-_]/g,'_'); }
+
+// ─── Individual row enrichment ────────────────────────────────────────────────
+async function enrichOne(btn, idx) {
+    if (btn.disabled) return;
+    var song = eaSongs[idx];
+    var row  = document.getElementById('ea-row-' + idx);
+    var statusEl = row.querySelector('.ea-row-status');
+
+    btn.disabled = true;
+    var origHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="ws-spinner" style="width:11px;height:11px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:4px"></span>Aguarde…';
+    statusEl.textContent = '';
+
+    try {
+        if (!keyPool.length) {
+            statusEl.innerHTML = '<span style="color:var(--text-dim)">Iniciando chaves…</span>';
+            await initKeyPool(function(count) {
+                statusEl.innerHTML = '<span style="color:var(--text-dim)">' + count + ' chave(s)…</span>';
+            });
+            statusEl.textContent = '';
+        }
+
+        btn.innerHTML = '<span class="ws-spinner" style="width:11px;height:11px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:4px"></span>Enriquecendo…';
+        var result = await processSong(song);
+
+        if (result.ok) {
+            btn.innerHTML =
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
+                + ' Enriquecido';
+            btn.style.color       = '#69d18a';
+            btn.style.borderColor = 'rgba(105,209,138,.3)';
+            row.style.transition  = 'opacity .4s';
+            row.style.opacity     = '0.5';
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            statusEl.innerHTML = '<span style="color:#ff8a80">✗ ' + escHtml(result.error || 'erro') + '</span>';
+        }
+    } catch(e) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+        statusEl.innerHTML = '<span style="color:#ff8a80">✗ Erro</span>';
+    }
+}
 </script>
 }
